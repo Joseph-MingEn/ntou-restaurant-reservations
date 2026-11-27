@@ -1,5 +1,5 @@
-import { readBookingRequest, readParty } from './line-language.js?v=12';
-import { bookingTables, cancelBooking, createBooking, DEADLINE_MINUTES, diningTime, endTime, getAvailability, isActive, MAX_PARTY, MEALS, moveBooking, TIMES, today } from './reservations.js?v=12';
+import { readBookingRequest, readParty } from './line-language.js?v=13';
+import { bookingTables, cancelBooking, createBooking, DEADLINE_MINUTES, diningTime, endTime, getAvailability, isActive, MAX_PARTY, MEALS, moveBooking, TIMES, today } from './reservations.js?v=13';
 
 const reply = text => ({ type: 'text', text });
 const BOOKING_DATE_ACTION = 'booking-date';

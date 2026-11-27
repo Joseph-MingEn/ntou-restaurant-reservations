@@ -194,7 +194,6 @@ meter::-webkit-meter-optimum-value { background: #609170; border-radius: 9px; }
   text-align: center;
   font-size: .83rem;
 }
-.guest-table.held { background: var(--warm); border-color: #e3c8b3; color: var(--rust); }
 .guest-table.dining {
   --seat-color: #0759b5;
   background: #dcecff;
@@ -209,7 +208,6 @@ meter::-webkit-meter-optimum-value { background: #609170; border-radius: 9px; }
 .seats .occupied-seat { background: var(--seat-color); border-color: var(--seat-color); animation: take-seat 420ms ease-out both; animation-delay: var(--seat-delay); }
 .legend i.legend-dining { background: #0759b5; border-color: #0759b5; border-radius: 50%; }
 #guest-map-view .legend { flex-wrap: wrap; }
-#guest-map-view .legend span:nth-child(2) i { background: var(--warm); border-color: #c8a180; }
 @keyframes take-seat {
   from { opacity: 0; transform: translateY(.45rem) scale(.25); }
   65% { opacity: 1; transform: translateY(0) scale(1.24); }

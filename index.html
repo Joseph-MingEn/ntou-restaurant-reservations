@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#12362a">
   <meta name="description" content="用 LINE 查詢與訂位，從業主看板掌握備餐人數和桌況。">
   <title>餐廳預約系統</title>
-  <link rel="stylesheet" href="./style.css?v=12">
-  <script type="module" src="./app.js?v=12"></script>
+  <link rel="stylesheet" href="./style.css?v=13">
+  <script type="module" src="./app.js?v=13"></script>
 </head>
 <body>
   <header class="topbar">
@@ -74,11 +74,11 @@
           <div id="guest-list-view"><ul id="booking-list"></ul></div>
           <div id="guest-map-view" hidden>
             <div class="animation-controls">
-              <p>依選取時刻預覽桌況，每個實心圓代表一位入座客人。</p>
+              <p>預覽所選用餐區間，每個實心圓代表一位已訂客人。</p>
               <button id="play-slots" type="button" class="secondary">播放時段</button>
             </div>
             <div id="guest-map" class="guest-map" aria-label="各桌客人分布"></div>
-            <div class="legend"><span><i></i> 空桌</span><span><i></i> 其他時段保留</span><span><i class="legend-dining"></i> 用餐中</span></div>
+            <div class="legend"><span><i></i> 空桌</span><span><i class="legend-dining"></i> 用餐中</span></div>
           </div>
         </section>
       </div>
