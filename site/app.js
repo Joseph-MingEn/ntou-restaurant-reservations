@@ -1,5 +1,5 @@
 import {
-  MEALS, TIMES, cancelBooking, createBooking, diningTime, endTime, getAvailability, getService, setArrival, today,
+  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, getService, isActive, setArrival, today,
 } from './reservations.js';
 import { handleLineMessage } from './line.js';
 
@@ -21,6 +21,9 @@ let mealKey = 'lunch';
 let adminKey = '';
 let renderEpoch = 0;
 let lastService = '';
+let currentService;
+let animationMode = false;
+let playback;
 let demoState;
 
 function element(tag, text, className) {
@@ -87,13 +90,14 @@ function metric(label, value, unit, hint) {
 }
 
 function drawService(service) {
-  const { availability, arrivals, bookings, guests, parties } = service;
+  currentService = service;
+  const { availability, arrivals, guests, parties } = service;
   const slotStatus = !availability.open ? '已截止' : availability.seats ? '開放訂位' : '額滿';
   byId('metrics').replaceChildren(
     metric('備餐人數', guests, '人', '整個餐期有效訂位'),
     metric('訂位組數', parties, '組', '含已報到的組別'),
     metric('尚可接待', availability.open ? availability.seats : 0, '人', availability.open ? '空桌可接待的總座位' : '此入座時間已截止'),
-    metric('最大單組', availability.open ? availability.maxParty : 0, '人', availability.open ? '單一空桌可坐人數' : '此入座時間已截止'),
+    metric('最大單組', availability.open ? availability.maxParty : 0, '人', availability.open ? '可用相鄰桌能容納的人數' : '此入座時間已截止'),
   );
   byId('slot-info').textContent =
     timeSelect.value + '–' + endTime(timeSelect.value) + ' · ' + slotStatus;
@@ -116,17 +120,127 @@ function drawService(service) {
     bar.max = 36;
     bar.value = count;
     bar.setAttribute('aria-label', time + ' 已訂 ' + count + ' 人');
-    row.append(element('strong', time), bar, element('span', count + ' 人'));
+    const slot = element('button', time, 'arrival-time');
+    slot.type = 'button';
+    slot.setAttribute('aria-pressed', String(time === timeSelect.value));
+    slot.addEventListener('click', () => {
+      stopPlayback();
+      timeSelect.value = time;
+      void refreshAdmin();
+    });
+    row.append(slot, bar, element('span', count + ' 人'));
     return row;
   }));
-  const rows = bookings.map(bookingRow);
-  byId('booking-list').replaceChildren(...(rows.length ? rows : [element('li', '這個餐期尚無訂位。', 'empty')]));
+  drawSlotGuests(service);
+}
+
+function drawSlotGuests(service) {
+  const time = timeSelect.value;
+  const bookings = service.bookings.filter(booking => booking.time === time);
+  const active = bookings.filter(isActive);
+  const guests = active.reduce((sum, booking) => sum + booking.party, 0);
+  byId('guest-summary').textContent =
+    time + '–' + endTime(time) + ' · ' + active.length + ' 組 · ' + guests + ' 人';
+  if (animationMode) {
+    drawGuestMap(service.availability.tables, active);
+  } else {
+    const rows = bookings.map(bookingRow);
+    byId('booking-list').replaceChildren(...(rows.length ? rows : [element('li', '這個入座時間尚無訂位。', 'empty')]));
+  }
+}
+
+function drawGuestMap(tables, bookings) {
+  const tableById = new Map(tables.map(table => [table.id, table]));
+  const assigned = new Map();
+  for (const [index, booking] of bookings.entries()) {
+    let remaining = booking.party;
+    for (const tableId of bookingTables(booking)) {
+      const guests = Math.min(remaining, tableById.get(tableId).capacity);
+      assigned.set(tableId, {
+        guests, index, combined: bookingTables(booking).length > 1,
+        arrived: booking.status === 'arrived',
+      });
+      remaining -= guests;
+    }
+  }
+  const map = byId('guest-map');
+  map.replaceChildren(...[2, 4].map(capacity => {
+    const section = element('div');
+    section.append(element('h3', capacity === 2 ? '兩人桌' : '四人桌'));
+    const grid = element('ul', undefined, 'guest-map-grid');
+    for (const table of tables.filter(item => item.capacity === capacity)) {
+      const assignment = assigned.get(table.id);
+      const status = assignment ? assignment.guests + ' 人' : table.occupied ? '保留' : '空桌';
+      const tile = element('li', undefined, 'guest-table');
+      if (table.occupied) tile.classList.add('held');
+      if (assignment) {
+        tile.classList.add('assigned');
+        tile.dataset.palette = assignment.index % 4;
+      }
+      const title = element('strong', table.id);
+      const note = element('span', status);
+      const people = element('div', undefined, 'seats');
+      people.setAttribute('aria-hidden', 'true');
+      for (let seat = 0; seat < capacity; seat++) {
+        const seated = seat < (assignment?.guests ?? 0);
+        const dot = element('i', undefined, seated ? 'occupied-seat' : '');
+        if (seated) dot.style.setProperty('--seat-delay', (seat * 75 + assignment.index * 60) + 'ms');
+        people.append(dot);
+      }
+      tile.append(title, people, note);
+      if (assignment?.combined || assignment?.arrived) {
+        tile.append(element('small', [assignment.combined ? '併桌' : '', assignment.arrived ? '已報到' : ''].filter(Boolean).join(' · ')));
+      }
+      grid.append(tile);
+    }
+    section.append(grid);
+    return section;
+  }));
+}
+
+function stopPlayback() {
+  clearInterval(playback);
+  playback = undefined;
+  byId('play-slots').textContent = '播放時段';
+}
+
+byId('play-slots').addEventListener('click', () => {
+  if (playback !== undefined) {
+    stopPlayback();
+    return;
+  }
+  const times = MEALS[mealKey].times;
+  let index = 0;
+  timeSelect.value = times[index];
+  void refreshAdmin();
+  byId('play-slots').textContent = '暫停播放';
+  playback = setInterval(() => {
+    index++;
+    if (index === times.length) {
+      stopPlayback();
+      return;
+    }
+    timeSelect.value = times[index];
+    void refreshAdmin();
+  }, 2600);
+});
+
+for (const [id, mode] of [['guest-list-mode', false], ['guest-map-mode', true]]) {
+  byId(id).addEventListener('click', () => {
+    animationMode = mode;
+    byId('guest-list-mode').setAttribute('aria-pressed', String(!mode));
+    byId('guest-map-mode').setAttribute('aria-pressed', String(mode));
+    byId('guest-list-view').hidden = mode;
+    byId('guest-map-view').hidden = !mode;
+    if (!mode) stopPlayback();
+    if (currentService) drawSlotGuests(currentService);
+  });
 }
 
 function bookingRow(booking) {
   const row = element('li', undefined, 'booking-row');
   const arrival = element('div');
-  arrival.append(element('strong', booking.time + '–' + endTime(booking.time)), element('p', booking.tableId + ' 桌 · ' + booking.party + ' 人'));
+  arrival.append(element('strong', booking.time + '–' + endTime(booking.time)), element('p', bookingTables(booking).join('＋') + ' 桌 · ' + booking.party + ' 人'));
   const name = element('div');
   name.append(element('strong', booking.name), element('p', booking.id));
   const contact = element('div');
@@ -252,6 +366,7 @@ async function sendChat(message, shown = message.text) {
 
 function navigate() {
   const lineSelected = demo && location.hash === '#line';
+  if (lineSelected) stopPlayback();
   byId('line').hidden = !lineSelected;
   byId('admin').hidden = lineSelected;
   byId('nav-admin').toggleAttribute('aria-current', !lineSelected);
@@ -269,12 +384,14 @@ fillTimes(timeSelect, MEALS[mealKey].times);
 dateInput.value = demo ? sampleDate : today();
 for (const [id, event] of [[dateInput, 'change'], [timeSelect, 'change']]) {
   id.addEventListener(event, () => {
+    stopPlayback();
     announce(adminFeedback, '');
     void refreshAdmin();
   });
 }
 for (const button of mealButtons) {
   button.addEventListener('click', () => {
+    stopPlayback();
     mealKey = button.dataset.meal;
     for (const item of mealButtons) item.setAttribute('aria-pressed', String(item === button));
     fillTimes(timeSelect, MEALS[mealKey].times);
@@ -294,6 +411,8 @@ if (demo) {
   guestDate.min = today();
   guestDate.value = sampleDate;
   fillTimes(guestTime, TIMES, true);
+  guestParty.replaceChildren(...Array.from({ length: MAX_PARTY }, (_, index) => new Option(index + 1, index + 1)));
+  guestParty.value = '2';
   for (const input of [guestDate, guestTime, guestParty]) {
     input.addEventListener('change', () => {
       announce(byId('guest-status'), '');

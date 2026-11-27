@@ -64,3 +64,16 @@ test('只接受有效簽章，重送同一事件只保留一筆，重啟保留�
   assert.equal((await restarted.send([booking])).status, 200);
   assert.equal(replyCalls.length, 1);
 });
+
+test('七筆同時搶午餐四人桌，十二人組只取得兩次且分配互斥', async t => {
+  const { send, service, replyCalls } = await setup(t);
+  const responses = await Promise.all(Array.from({ length: 7 }, (_, index) => send([
+    event('large-' + index, '訂位 2027-01-12 12:30 12 林小安 guest@example.test'),
+  ])));
+  assert.ok(responses.every(response => response.status === 200));
+  assert.equal(replyCalls.filter(item => item.message.text.includes('訂位成功')).length, 2);
+  const result = await (await service()).json();
+  assert.equal(result.guests, 24);
+  assert.equal(new Set(result.bookings.flatMap(booking => booking.tableIds)).size, 6);
+  assert.equal(result.availability.maxParty, 6);
+});

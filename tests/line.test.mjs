@@ -49,3 +49,11 @@ test('可查本人訂位，改期失敗保留原桌，改期成功沿用訂位�
   assert.equal(state.bookings[0].id, 'R-001');
   assert.equal(state.bookings[0].time, '17:30');
 });
+
+test('LINE 大組訂位收到全部桌號，十三人以上引導聯絡店家', () => {
+  const { state, send } = setup();
+  const reply = send('訂位 2027-01-12 12:30 5 林小安 guest@example.test');
+  assert.match(reply.text, /A01＋B01/);
+  assert.match(send('訂位 2027-01-12 12:30 13 林小安 guest@example.test').text, /聯繫店家/);
+  assert.equal(state.bookings.length, 1);
+});

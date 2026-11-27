@@ -6,9 +6,9 @@
 
 ## 試用展示
 
-1. 業主看板預設顯示明天午餐的 6 組、17 人，可查看備餐量、入座分布與桌況。
+1. 業主看板預設顯示明天午餐的 6 組、17 人，可查看備餐量、入座分布與桌況。點選「分時到店」的時間後，可以在「時段客人」切換文字列表與圖像動畫。
 2. 選「LINE 訂位」，使用表單預填的示例聯絡方式建立訂位。成功後，返回「業主看板」看同餐期的備餐與桌況變化。
-3. 切回「LINE 訂位」。選「我的訂位」取得編號，再傳「定位 訂位編號」。選「傳送示例定位」後，看板上對應訂位會有定位連結。也可改期或取消，觀察桌位立即釋出。
+3. 切回「LINE 訂位」。選「我的訂位」取得編號，再傳「定位 訂位編號」。選「傳送示例定位」後，看板上對應訂位會有定位連結。也可改期或取消，觀察桌位立即釋出。試訂 5 人可看到同組的兩張桌；13 人以上請聯繫店家。
 4. GitHub Pages 的兩個介面使用同一瀏覽器的示例資料。用無痕視窗可以開啟一份新的示例。
 
 ## 本機驗證
@@ -25,7 +25,7 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory site
 ## LINE 與業主服務
 
 1. 將 `.env.example` 複製到 `.env`，設定獨立、強隨機的 `ADMIN_KEY`，以及 LINE Official Account Messaging API 的 `LINE_CHANNEL_SECRET` 和 `LINE_CHANNEL_ACCESS_TOKEN`。
-2. 執行 `node --env-file=.env server.mjs`。正式營運時，使用具有持久磁碟的單一 Node.js 行程和 HTTPS 反向代理。將 `data/` 納入私有備份，備份保護級別與正式業主名單相同。
+2. 執行 `node --env-file=.env server.mjs`。正式營運時，先核對實店桌位相鄰關係，再使用具有持久磁碟的單一 Node.js 行程和 HTTPS 反向代理。將 `data/` 納入私有備份，備份保護級別與正式業主名單相同。
 3. 在 LINE Developers Console 將公開的 HTTPS `/line/webhook` 設為 Webhook URL，點 Verify 並啟用 Webhook。業主使用該服務的 `/admin`，登入後可讀取來自 LINE 的預約與定位。測試時核對同一支 LINE 私聊與業主看板。
 4. LINE 指令範例如下。含空格的姓名可用 `|` 分隔姓名和聯絡方式，例如 `訂位 YYYY-MM-DD 12:00 2 Amy Chen | guest@example.test`。
 

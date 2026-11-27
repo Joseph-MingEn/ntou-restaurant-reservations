@@ -21,21 +21,21 @@ test('入座前剛好 30 分鐘即截止，且早一毫秒仍能訂位', () => {
   assert.equal(records.length, 0);
 });
 
-test('四人桌用完時仍可接十二人，但最大單組只有兩人', () => {
+test('四人桌用完時仍可接十二人，相鄰兩人桌最多接六人', () => {
   const records = [];
   for (let index = 1; index <= 6; index++) {
     createBooking(records, { ...request, party: 4 }, { now, id: String(index) });
   }
   const { seats, two, four, maxParty } = getAvailability(records, date, '12:30', now);
-  assert.deepEqual({ seats, two, four, maxParty }, { seats: 12, two: 6, four: 0, maxParty: 2 });
-  assert.throws(() => createBooking(records, { ...request, party: 3 }, { now }), /空桌/);
+  assert.deepEqual({ seats, two, four, maxParty }, { seats: 12, two: 6, four: 0, maxParty: 6 });
+  assert.throws(() => createBooking(records, { ...request, party: 7 }, { now }), /空桌/);
   assert.equal(getAvailability(records, date, '17:00', now).seats, 36);
   assert.equal(getAvailability(records, '2027-01-13', '11:30', now).seats, 36);
 });
 
 test('拒絕溢位日期、未開放時間、人數和無效聯絡資料', () => {
   for (const change of [
-    { date: '2027-02-30' }, { time: '13:00' }, { party: 5 }, { party: 1.5 },
+    { date: '2027-02-30' }, { time: '13:00' }, { party: 13 }, { party: 1.5 },
     { name: ' ' }, { contact: '123' },
   ]) assert.throws(() => createBooking([], { ...request, ...change }, { now }));
 });
@@ -67,4 +67,21 @@ test('業主可記錄報到和未到，未到會釋出桌位和備餐量', async
   assert.equal(service.guests, 2);
   assert.equal(service.availability.seats, 34);
   assert.deepEqual(service.bookings.map(item => item.status), ['arrived', 'no-show']);
+});
+
+test('五人優先用相鄰的兩人桌與四人桌，兩張桌都完整保留', () => {
+  const records = [];
+  const booking = createBooking(records, { ...request, party: 5 }, { now, id: 'A' });
+  assert.deepEqual(booking.tableIds, ['A01', 'B01']);
+  const info = getAvailability(records, date, '12:30', now);
+  assert.equal(info.seats, 30);
+  assert.equal(info.maxParty, 12);
+});
+
+test('空桌分散時，總空位達五人也不能預約五人', () => {
+  const records = ['A02', 'A04', 'A06', 'B01', 'B03', 'B05'].map(tableId => ({ ...request, tableId }));
+  const info = getAvailability(records, date, '11:30', now);
+  assert.equal(info.seats, 18);
+  assert.equal(info.maxParty, 4);
+  assert.throws(() => createBooking(records, { ...request, party: 5 }, { now }), /相鄰/);
 });
