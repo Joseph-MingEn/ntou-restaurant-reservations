@@ -35,6 +35,19 @@ const seatingOptions = [...configurations.values()].map(group => ({
   first.ids.join(',').localeCompare(second.ids.join(','))
 );
 
+export function createBookingNumber(records) {
+  const first = 100_000;
+  const count = 900_000;
+  const used = new Set(records.filter(item => /^\d{6}$/.test(item.id)).map(item => item.id));
+  let offset = Math.floor(Math.random() * count);
+  for (let attempt = 0; attempt < count; attempt++) {
+    const id = String(first + offset);
+    if (!used.has(id)) return id;
+    offset = (offset + 1) % count;
+  }
+  throw new Error('訂位編號已用完，請聯繫店家。');
+}
+
 export function bookingTables(booking) {
   return booking.tableIds ?? [booking.tableId];
 }
