@@ -1,0 +1,364 @@
+import {
+  MEALS, TIMES, cancelBooking, createBooking, diningTime, endTime, getAvailability, getService, setArrival, today,
+} from './reservations.js';
+import { handleLineMessage } from './line.js';
+
+const byId = id => document.getElementById(id);
+const demo = location.pathname !== '/admin';
+const storeKey = 'ntou-restaurant-reservations-demo-v1';
+const sampleDate = today(new Date(Date.now() + 86_400_000));
+const guest = 'line:demo-customer';
+const dateInput = byId('service-date');
+const timeSelect = byId('service-time');
+const reserveForm = byId('reserve-form');
+const guestDate = reserveForm.elements.namedItem('date');
+const guestTime = reserveForm.elements.namedItem('time');
+const guestParty = reserveForm.elements.namedItem('party');
+const adminFeedback = byId('admin-status');
+const messages = byId('messages');
+const mealButtons = [...document.querySelectorAll('[data-meal]')];
+let mealKey = 'lunch';
+let adminKey = '';
+let renderEpoch = 0;
+let lastService = '';
+let demoState;
+
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function announce(node, message) {
+  node.textContent = message;
+  node.hidden = !message;
+}
+
+function newDemo() {
+  const bookings = [];
+  const samplePeople = ['陳小姐', '李先生', '謝小姐', '鄭先生', '張小姐', '林先生'];
+  const parties = [2, 3, 2, 4, 4, 2];
+  for (const [index, name] of samplePeople.entries()) {
+    createBooking(bookings, {
+      name, date: sampleDate, time: MEALS.lunch.times[Math.floor(index / 2)], party: parties[index],
+      contact: 'guest' + (index + 1) + '@example.test',
+    }, { id: 'DEMO-' + (index + 1), owner: 'sample' });
+  }
+  return { bookings, locationRequests: {} };
+}
+
+function readDemo() {
+  try {
+    const saved = localStorage.getItem(storeKey);
+    if (saved) return JSON.parse(saved);
+  } catch {
+    announce(adminFeedback, '瀏覽器儲存無法使用，展示只能在本頁暫存。');
+  }
+  return demoState ?? newDemo();
+}
+
+async function changeDemo(transform) {
+  const update = () => {
+    const next = structuredClone(readDemo());
+    const result = transform(next);
+    demoState = next;
+    try {
+      localStorage.setItem(storeKey, JSON.stringify(next));
+    } catch {
+      announce(adminFeedback, '瀏覽器儲存無法使用，重新整理會清除本頁的變更。');
+    }
+    return result;
+  };
+  if (navigator.locks) return navigator.locks.request(storeKey, update);
+  return update();
+}
+
+function fillTimes(select, times, showEnd = false) {
+  select.replaceChildren(...times.map(time => new Option(showEnd ? time + '–' + endTime(time) : time, time)));
+}
+
+function metric(label, value, unit, hint) {
+  const card = element('div', undefined, 'metric');
+  const figure = element('p', String(value), 'metric-value');
+  figure.append(element('small', unit));
+  card.append(element('p', label, 'metric-label'), figure, element('p', hint, 'metric-note'));
+  return card;
+}
+
+function drawService(service) {
+  const { availability, arrivals, bookings, guests, parties } = service;
+  const slotStatus = !availability.open ? '已截止' : availability.seats ? '開放訂位' : '額滿';
+  byId('metrics').replaceChildren(
+    metric('備餐人數', guests, '人', '整個餐期有效訂位'),
+    metric('訂位組數', parties, '組', '含已報到的組別'),
+    metric('尚可接待', availability.open ? availability.seats : 0, '人', availability.open ? '空桌可接待的總座位' : '此入座時間已截止'),
+    metric('最大單組', availability.open ? availability.maxParty : 0, '人', availability.open ? '單一空桌可坐人數' : '此入座時間已截止'),
+  );
+  byId('slot-info').textContent =
+    timeSelect.value + '–' + endTime(timeSelect.value) + ' · ' + slotStatus;
+  byId('tables').replaceChildren(...[2, 4].map(capacity => {
+    const group = element('div', undefined, 'table-group');
+    const heading = element('h3', capacity === 2 ? '兩人桌' : '四人桌');
+    heading.append(element('span', '剩 ' + (capacity === 2 ? availability.two : availability.four) + ' / 6 張'));
+    const list = element('ul', undefined, 'table-grid');
+    for (const table of availability.tables.filter(item => item.capacity === capacity)) {
+      const chip = element('li', table.id, 'table-chip' + (table.occupied ? ' occupied' : ''));
+      chip.append(element('span', table.occupied ? ' 已保留' : ' 空桌', 'sr-only'));
+      list.append(chip);
+    }
+    group.append(heading, list);
+    return group;
+  }));
+  byId('arrivals').replaceChildren(...arrivals.map(({ time, guests: count }) => {
+    const row = element('div', undefined, 'arrival-row');
+    const bar = element('meter');
+    bar.max = 36;
+    bar.value = count;
+    bar.setAttribute('aria-label', time + ' 已訂 ' + count + ' 人');
+    row.append(element('strong', time), bar, element('span', count + ' 人'));
+    return row;
+  }));
+  const rows = bookings.map(bookingRow);
+  byId('booking-list').replaceChildren(...(rows.length ? rows : [element('li', '這個餐期尚無訂位。', 'empty')]));
+}
+
+function bookingRow(booking) {
+  const row = element('li', undefined, 'booking-row');
+  const arrival = element('div');
+  arrival.append(element('strong', booking.time + '–' + endTime(booking.time)), element('p', booking.tableId + ' 桌 · ' + booking.party + ' 人'));
+  const name = element('div');
+  name.append(element('strong', booking.name), element('p', booking.id));
+  const contact = element('div');
+  contact.append(element('p', booking.contact));
+  if (booking.location) {
+    const link = element('a', '查看分享的定位');
+    link.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(
+      booking.location.latitude + ',' + booking.location.longitude
+    );
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    contact.append(link);
+  }
+  const state = element('div');
+  const confirmed = !booking.cancelled && !booking.status;
+  const label = booking.cancelled ? '已取消' : ({ arrived: '已報到', 'no-show': '未到' }[booking.status] ?? '已確認');
+  state.append(element('strong', label));
+  if (confirmed) {
+    const actions = element('div', undefined, 'booking-actions');
+    const start = diningTime(booking.date, booking.time);
+    const now = Date.now();
+    if (now >= start - 1_800_000 && now < start + 7_200_000) actions.append(statusButton(booking, 'arrived', '報到'));
+    if (now >= start) actions.append(statusButton(booking, 'no-show', '記為未到'));
+    actions.append(statusButton(booking, 'cancelled', '取消'));
+    state.append(actions);
+  }
+  row.append(arrival, name, contact, state);
+  return row;
+}
+
+function statusButton(booking, status, label) {
+  const button = element('button', label);
+  button.type = 'button';
+  button.setAttribute('aria-label', label + ' ' + booking.name + '的訂位');
+  button.addEventListener('click', async () => {
+    if ((status === 'cancelled' || status === 'no-show') && !window.confirm(label + '「' + booking.name + '」的訂位？')) return;
+    button.disabled = true;
+    announce(adminFeedback, '');
+    try {
+      if (demo) {
+        await changeDemo(state => status === 'cancelled'
+          ? cancelBooking(state.bookings, booking.id)
+          : setArrival(state.bookings, booking.id, status));
+      } else {
+        await api('/api/admin/status', { method: 'POST', body: JSON.stringify({ id: booking.id, status }) });
+      }
+      await refreshAdmin();
+      announce(adminFeedback, '訂位狀態已更新。');
+    } catch (error) {
+      announce(adminFeedback, error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  return button;
+}
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: { Authorization: 'Bearer ' + adminKey, 'Content-Type': 'application/json' },
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error ?? '讀取失敗，請稍後再試。');
+  return result;
+}
+
+async function refreshAdmin() {
+  if (!demo && !adminKey) return false;
+  const epoch = ++renderEpoch;
+  const date = dateInput.value;
+  const time = timeSelect.value;
+  if (!date || !time) {
+    byId('admin-data').hidden = !time;
+    announce(adminFeedback, '請指定營業日期。');
+    return false;
+  }
+  try {
+    const service = demo ? getService(readDemo().bookings, date, time) :
+      await api('/api/admin/service?' + new URLSearchParams({ date, time }));
+    if (epoch !== renderEpoch) return false;
+    const snapshot = JSON.stringify([date, time, Math.floor(Date.now() / 60_000), service]);
+    if (lastService !== snapshot) {
+      drawService(service);
+      lastService = snapshot;
+    }
+    byId('admin-data').hidden = false;
+    return true;
+  } catch (error) {
+    if (epoch === renderEpoch) announce(adminFeedback, error.message);
+    return false;
+  }
+}
+
+function showAvailability() {
+  if (!guestDate.value) {
+    byId('guest-availability').textContent = '請先選擇日期。';
+    return;
+  }
+  const info = getAvailability(readDemo().bookings, guestDate.value, guestTime.value);
+  const available = info.open && info.maxParty >= Number(guestParty.value);
+  byId('guest-availability').textContent = !info.open
+    ? '此入座時間已截止。'
+    : available ? '可安排這組人數 · 空桌總共可接 ' + info.seats + ' 人。' : '這組人數目前沒有合適的空桌。';
+}
+
+function addBubble(text, customer = false) {
+  messages.append(element('p', text, 'bubble' + (customer ? ' user' : '')));
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function sendChat(message, shown = message.text) {
+  if (shown) addBubble(shown, true);
+  const response = await changeDemo(state => handleLineMessage(state, message, {
+    user: guest, createId: () => 'R-' + crypto.randomUUID().slice(0, 8).toUpperCase(),
+  }));
+  addBubble(response.text);
+  byId('quick-location').hidden = !(readDemo().locationRequests[guest]?.until > Date.now());
+  showAvailability();
+  await refreshAdmin();
+  return response.text;
+}
+
+function navigate() {
+  const lineSelected = demo && location.hash === '#line';
+  byId('line').hidden = !lineSelected;
+  byId('admin').hidden = lineSelected;
+  byId('nav-admin').toggleAttribute('aria-current', !lineSelected);
+  byId('nav-line').toggleAttribute('aria-current', lineSelected);
+  if (lineSelected) {
+    byId('nav-line').setAttribute('aria-current', 'page');
+    messages.scrollTop = messages.scrollHeight;
+  } else {
+    byId('nav-admin').setAttribute('aria-current', 'page');
+    void refreshAdmin();
+  }
+}
+
+fillTimes(timeSelect, MEALS[mealKey].times);
+dateInput.value = demo ? sampleDate : today();
+for (const [id, event] of [[dateInput, 'change'], [timeSelect, 'change']]) {
+  id.addEventListener(event, () => {
+    announce(adminFeedback, '');
+    void refreshAdmin();
+  });
+}
+for (const button of mealButtons) {
+  button.addEventListener('click', () => {
+    mealKey = button.dataset.meal;
+    for (const item of mealButtons) item.setAttribute('aria-pressed', String(item === button));
+    fillTimes(timeSelect, MEALS[mealKey].times);
+    announce(adminFeedback, '');
+    void refreshAdmin();
+  });
+}
+window.addEventListener('hashchange', navigate);
+setInterval(() => {
+  if (!byId('admin').hidden) void refreshAdmin();
+  if (demo && !byId('line').hidden) showAvailability();
+}, 15_000);
+
+if (demo) {
+  demoState = readDemo();
+  await changeDemo(() => {});
+  guestDate.min = today();
+  guestDate.value = sampleDate;
+  fillTimes(guestTime, TIMES, true);
+  for (const input of [guestDate, guestTime, guestParty]) {
+    input.addEventListener('change', () => {
+      announce(byId('guest-status'), '');
+      showAvailability();
+    });
+  }
+  showAvailability();
+  addBubble('你好！可以先查詢空桌，或選擇日期、人數與時間來訂位。每組最多兩小時，入座前 30 分鐘截止。');
+  const sendText = text => sendChat({ type: 'text', text }).catch(error => addBubble(error.message));
+  byId('quick-find').addEventListener('click', () => void sendText('查詢 ' + (guestDate.value || sampleDate)));
+  byId('quick-mine').addEventListener('click', () => void sendText('我的訂位'));
+  byId('quick-book').addEventListener('click', () => guestDate.focus());
+  byId('quick-location').hidden = !(readDemo().locationRequests[guest]?.until > Date.now());
+  byId('quick-location').addEventListener('click', () => void sendChat(
+    { type: 'location', latitude: 25.149, longitude: 121.774 }, '已傳送示例定位'
+  ).catch(error => addBubble(error.message)));
+  byId('chat-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const input = byId('chat-input');
+    const text = input.value.trim();
+    if (text) void sendText(text);
+    input.value = '';
+  });
+  reserveForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const data = new FormData(reserveForm);
+    const customer = data.get('customer');
+    if (/[|｜]/.test(customer)) {
+      announce(byId('guest-status'), '姓名請使用文字與空格。');
+      return;
+    }
+    const button = reserveForm.querySelector('button');
+    button.disabled = true;
+    try {
+      const command = ['訂位', data.get('date'), data.get('time'), data.get('party'), customer, '|', data.get('contact')].join(' ');
+      const feedback = await sendChat({ type: 'text', text: command });
+      announce(byId('guest-status'), feedback);
+    } catch (error) {
+      announce(byId('guest-status'), error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  window.addEventListener('storage', event => {
+    if (event.key !== storeKey) return;
+    showAvailability();
+    void refreshAdmin();
+  });
+} else {
+  byId('navigation').hidden = true;
+  byId('demo-note').hidden = true;
+  byId('admin-data').hidden = true;
+  byId('login').hidden = false;
+  byId('login').addEventListener('submit', async event => {
+    event.preventDefault();
+    const input = byId('admin-key');
+    adminKey = input.value;
+    announce(adminFeedback, '');
+    if (await refreshAdmin()) {
+      input.value = '';
+      byId('login').hidden = true;
+      dateInput.focus();
+    } else {
+      adminKey = '';
+    }
+  });
+}
+navigate();
