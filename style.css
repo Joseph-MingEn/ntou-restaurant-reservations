@@ -202,3 +202,20 @@ meter::-webkit-meter-optimum-value { background: #609170; border-radius: 9px; }
   .guest-table strong { font-size: .86rem; }
   .guest-table small { font-size: .68rem; }
 }
+
+.line-official {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  border: 1px solid #c3d8c7;
+  border-radius: var(--radius);
+  background: var(--green-light);
+  padding: .85rem 1.05rem;
+  margin-bottom: 1rem;
+}
+.line-official p { margin-top: .18rem; color: var(--muted); font-size: .9rem; }
+.line-official a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap; }
+@media (max-width: 36rem) {
+  .line-official { flex-direction: column; align-items: flex-start; padding: .86rem; }
+}
