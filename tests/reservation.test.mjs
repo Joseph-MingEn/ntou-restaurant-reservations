@@ -86,14 +86,19 @@ test('空桌分散時，總空位達五人也不能預約五人', () => {
   assert.throws(() => createBooking(records, { ...request, party: 5 }, { now }), /相鄰/);
 });
 
-test('桌況動畫顯示整段用餐區間有重疊的訂位，並排除已取消的訂位', async () => {
-  const { cancelBooking, getDiningIds } = await import('../site/reservations.js');
+test('依選取時間區分預約中、用餐中與空桌，取消的桌不占位', async () => {
+  const { cancelBooking, getSeatAssignments } = await import('../site/reservations.js');
   const records = [];
-  createBooking(records, { ...request, time: '11:30' }, { now, id: 'early' });
-  createBooking(records, { ...request, time: '11:30' }, { now, id: 'cancelled' });
-  createBooking(records, { ...request, time: '12:00' }, { now, id: 'current' });
-  createBooking(records, { ...request, time: '12:30' }, { now, id: 'later' });
+  const early = createBooking(records, { ...request, time: '11:30' }, { now, id: 'early' });
+  const cancelled = createBooking(records, { ...request, time: '11:30' }, { now, id: 'cancelled' });
+  const current = createBooking(records, { ...request, time: '12:00' }, { now, id: 'current' });
+  const later = createBooking(records, { ...request, time: '12:30' }, { now, id: 'later' });
   cancelBooking(records, 'cancelled');
-  assert.deepEqual(getDiningIds(records, request.date, '12:00'), ['early', 'current', 'later']);
-  assert.deepEqual(getDiningIds(records, request.date, '17:00'), []);
+  const noon = getSeatAssignments(records, request.date, '12:00');
+  assert.equal(noon.get(early.tableId).status, 'dining');
+  assert.equal(noon.get(current.tableId).status, 'dining');
+  assert.equal(noon.get(later.tableId).status, 'reserved');
+  assert.equal(noon.has(cancelled.tableId), false);
+  assert.equal(getSeatAssignments(records, request.date, '12:30').get(later.tableId).status, 'dining');
+  assert.equal(getSeatAssignments(records, request.date, '17:00').size, 0);
 });
