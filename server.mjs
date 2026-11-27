@@ -3,13 +3,13 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { handleLineMessage } from './site/line.js?v=6';
+import { handleLineMessage } from './site/line.js?v=7';
 import { cancelBooking, getService, setArrival } from './site/reservations.js?v=3';
 
 const staticFiles = new Map([
   ['/admin', ['index.html', 'text/html; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
-  ...['app', 'reservations', 'line'].map(name => [
+  ...['app', 'reservations', 'line', 'line-language'].map(name => [
     '/' + name + '.js', [name + '.js', 'text/javascript; charset=utf-8'],
   ]),
 ]);

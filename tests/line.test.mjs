@@ -112,3 +112,53 @@ test('選了時間後，送出時已過截止或無足夠相鄰桌就不建立�
   assert.match(send('確認 12 王小明 guest@example.test').text, /相鄰空桌/);
   assert.equal(state.bookings.length, 2);
 });
+
+test('口語詢問明天晚餐五點半有沒有五人座時，回覆該時段的容量', () => {
+  const { state, send } = setup();
+  const answer = send('請問明天晚上五點半，五位，有位嗎？');
+  assert.match(answer.text, /2027-01-12/);
+  assert.match(answer.text, /17:30–19:30.*5 人可訂/);
+  assert.equal(state.bookings.length, 0);
+});
+
+test('口語訂位會準備所選時間，再由客人確認資料', () => {
+  const { state, send } = setup();
+  const first = send('我想訂明晚五點半的位子，六個人');
+  assert.match(first.text, /2027-01-12 17:30–19:30/);
+  assert.match(first.text, /確認 6 王小明/);
+  assert.equal(state.bookings.length, 0);
+  assert.match(send('確認 六位 王小明 guest@example.test').text, /訂位成功/);
+  assert.equal(state.bookings[0].party, 6);
+});
+
+test('要求 19:59 入座時，說明 18:00 最晚入座、17:30 截止及可選時段', () => {
+  const { state, send } = setup();
+  const answer = send('訂位 2026-11-28 19:59', 'line-a', new Date('2026-11-27T14:00:00+08:00'));
+  assert.match(answer.text, /晚餐營業到 20:00/);
+  assert.match(answer.text, /最晚 18:00 入座/);
+  assert.match(answer.text, /提早 1 小時 59 分鐘/);
+  assert.match(answer.text, /17:30 前完成訂位/);
+  assert.match(answer.text, /入座前 30 分鐘/);
+  assert.ok(answer.quickReply.items.some(item => item.action.text === '訂位 2026-11-28 18:00'));
+  assert.equal(state.bookings.length, 0);
+});
+
+test('未開放的非整點時段回覆可選時段及各自的訂位截止', () => {
+  const { send } = setup();
+  const answer = send('明天晚上 17:40 能訂嗎？');
+  assert.match(answer.text, /每 30 分鐘/);
+  assert.match(answer.text, /17:30–19:30.*17:00 前/);
+  assert.match(answer.text, /18:00–20:00.*17:30 前/);
+});
+
+test('用口語詢問截止，回覆確切的截止時間而不建立訂位草稿', () => {
+  const { state, send } = setup();
+  assert.match(send('明天晚上六點要提前多久訂位？').text, /17:30 前/);
+  assert.equal(state.bookingDrafts, undefined);
+});
+
+test('口語「五點五位有空嗎」將第二個五辨識為人數，且只查詢空位', () => {
+  const { state, send } = setup();
+  assert.match(send('明天晚上五點五位有空嗎？').text, /17:00–19:00.*5 人可訂/);
+  assert.equal(state.bookingDrafts, undefined);
+});
