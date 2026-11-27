@@ -163,6 +163,15 @@ export function getService(records, date, time, now = new Date()) {
   };
 }
 
+export function getDiningIds(bookings, date, time) {
+  const selected = diningTime(date, time);
+  return bookings.filter(booking => {
+    if (booking.date !== date || !isActive(booking)) return false;
+    const start = diningTime(booking.date, booking.time);
+    return start <= selected && selected < start + DURATION;
+  }).map(booking => booking.id);
+}
+
 export function setArrival(records, id, status, now = new Date()) {
   const booking = records.find(item => item.id === id && !item.cancelled && !item.status);
   if (!booking) throw new Error('找不到可更新的訂位。');
