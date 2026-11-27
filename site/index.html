@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12362a">
+  <meta name="description" content="用 LINE 查詢與訂位，從業主看板掌握備餐人數和桌況。">
+  <title>餐廳預約系統</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell top-inner">
+      <a class="brand" href="#admin"><span class="brand-icon" aria-hidden="true">席</span><span>餐廳預約系統</span></a>
+      <nav aria-label="操作介面" id="navigation">
+        <a href="#admin" id="nav-admin" aria-current="page">業主看板</a>
+        <a href="#line" id="nav-line">LINE 訂位</a>
+      </nav>
+    </div>
+  </header>
+  <main class="shell">
+    <section id="admin" aria-labelledby="admin-heading">
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">店務管理</p>
+          <h1 id="admin-heading">訂位總覽</h1>
+          <p>查看餐期備餐人數、入座安排與桌位。</p>
+        </div>
+        <label class="date-field">營業日期 <input type="date" id="service-date"></label>
+      </div>
+      <p class="demo-note" id="demo-note">展示模式・本瀏覽器內的示例訂位會同步至兩個介面。</p>
+      <form id="login" class="panel login" hidden>
+        <h2>業主登入</h2>
+        <label for="admin-key">管理金鑰</label>
+        <div class="form-row">
+          <input id="admin-key" type="password" autocomplete="off" required>
+          <button class="primary" type="submit">載入訂位</button>
+        </div>
+      </form>
+      <p id="admin-status" class="feedback" role="status" hidden></p>
+      <div id="admin-data">
+        <div class="service-tabs" aria-label="餐期">
+          <button data-meal="lunch" type="button" aria-pressed="true">午餐 <span>11:30–14:30</span></button>
+          <button data-meal="dinner" type="button" aria-pressed="false">晚餐 <span>17:00–20:00</span></button>
+        </div>
+        <div class="metrics" id="metrics" aria-label="餐期統計"></div>
+        <div class="detail-grid">
+          <section class="panel floor" aria-labelledby="desk-heading">
+            <div class="panel-top">
+              <div>
+                <h2 id="desk-heading">桌況配置</h2>
+                <p>查詢指定入座時間的可用桌位。</p>
+              </div>
+              <label class="select-field">入座時間 <select id="service-time"></select></label>
+            </div>
+            <p class="slot-info" id="slot-info"></p>
+            <div id="tables"></div>
+            <div class="legend"><span><i></i> 空桌</span><span><i></i> 已保留</span></div>
+          </section>
+          <section class="panel arrivals" aria-labelledby="arrivals-heading">
+            <div class="panel-top"><div><h2 id="arrivals-heading">分時到店</h2><p>各入座時間的已訂人數。</p></div></div>
+            <div id="arrivals"></div>
+          </section>
+        </div>
+        <section class="panel bookings" aria-labelledby="bookings-heading">
+          <div class="panel-top"><div><h2 id="bookings-heading">訂位名單</h2><p>當餐期的聯絡方式、定位與到店狀態。</p></div></div>
+          <ul id="booking-list"></ul>
+        </section>
+      </div>
+    </section>
+    <section id="line" aria-labelledby="line-heading" hidden>
+      <div class="page-heading line-heading">
+        <div>
+          <p class="eyebrow">客人端</p>
+          <h1 id="line-heading">LINE 訂位</h1>
+          <p>查詢空桌、建立訂位，或管理自己的訂位。</p>
+        </div>
+      </div>
+      <div class="line-layout">
+        <section class="panel chat" aria-label="LINE 對話模擬器">
+          <div class="chat-head"><span class="chat-avatar" aria-hidden="true">席</span><div><strong>餐廳訂位助手</strong><div>LINE 對話模擬</div></div></div>
+          <div id="messages" class="messages" role="log" aria-label="訂位對話" aria-live="polite"></div>
+          <div class="quick-actions" aria-label="快捷操作">
+            <button id="quick-find" type="button">查詢空桌</button>
+            <button id="quick-book" type="button">開始訂位</button>
+            <button id="quick-mine" type="button">我的訂位</button>
+            <button id="quick-location" type="button" hidden>傳送示例定位</button>
+          </div>
+          <form id="chat-form" class="chat-form">
+            <label class="sr-only" for="chat-input">LINE 訊息</label>
+            <input id="chat-input" type="text" maxlength="220" placeholder="輸入 LINE 訊息" required autocomplete="off">
+            <button type="submit" class="primary">送出</button>
+          </form>
+        </section>
+        <div class="line-side">
+          <section class="panel reserve" id="reserve-panel" aria-labelledby="reserve-heading">
+            <div class="panel-top"><div><h2 id="reserve-heading">預約資料</h2><p>示例請使用虛構姓名和聯絡方式。</p></div></div>
+            <form id="reserve-form" class="reserve-form">
+              <label>用餐日期 <input type="date" name="date" required></label>
+              <label>入座時間 <select name="time" required></select></label>
+              <label>人數 <select name="party" required><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+              <label>姓名 <input name="customer" value="示例顧客" maxlength="40" required></label>
+              <label class="wide">電話或 Email <input name="contact" value="guest@example.test" maxlength="100" required></label>
+              <p class="form-note wide" id="guest-availability" role="status"></p>
+              <p class="form-note wide" id="guest-status" role="status" hidden></p>
+              <button type="submit" class="primary wide">透過 LINE 模擬訂位</button>
+            </form>
+          </section>
+          <section class="panel commands" aria-labelledby="command-heading">
+            <h2 id="command-heading">管理訂位</h2>
+            <p>從「我的訂位」取得編號，再在對話輸入指令。</p>
+            <dl>
+              <div><dt>改期或改人數</dt><dd>改期 訂位編號 YYYY-MM-DD 17:00 3</dd></div>
+              <div><dt>取消</dt><dd>取消 訂位編號</dd></div>
+              <div><dt>分享定位</dt><dd>定位 訂位編號</dd></div>
+            </dl>
+          </section>
+        </div>
+      </div>
+    </section>
+    <noscript>請啟用 JavaScript 以使用預約介面。</noscript>
+  </main>
+  <footer class="shell footer"><span>兩人桌 6 張 · 四人桌 6 張</span><span>每組最多用餐 2 小時 · 入座前 30 分鐘截止 · 台灣時間</span></footer>
+</body>
+</html>
