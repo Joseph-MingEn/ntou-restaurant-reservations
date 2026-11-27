@@ -74,3 +74,41 @@ test('/help 列出所有指令及可用範例，不建立或修改訂位', () =>
   ]) assert.ok(message.text.includes(command), '遺漏指令範例 ' + command);
   assert.deepEqual(state, { bookings: [], locationRequests: {} });
 });
+
+test('客人先選日期和仍開放的時間，確認資料後才完成訂位', () => {
+  const { state, send } = setup();
+  const lateMorning = new Date('2027-01-12T11:45:00+08:00');
+  const start = send('訂位', 'line-a', lateMorning);
+  const dateAction = start.quickReply.items[0].action;
+  assert.equal(dateAction.type, 'datetimepicker');
+  assert.equal(dateAction.mode, 'date');
+
+  const selectedDate = { type: 'postback', data: dateAction.data, params: { date: '2027-01-12' } };
+  const slots = send(selectedDate, 'line-a', lateMorning);
+  assert.deepEqual(slots.quickReply.items.map(item => item.action.text), [
+    '訂位 2027-01-12 12:30', '訂位 2027-01-12 17:00', '訂位 2027-01-12 17:30', '訂位 2027-01-12 18:00',
+  ]);
+
+  const picked = send(slots.quickReply.items[2].action.text, 'line-a', lateMorning);
+  assert.match(picked.text, /17:30–19:30/);
+  assert.equal(state.bookings.length, 0);
+  assert.match(send('確認 5 王小明 guest@example.test', 'line-b', lateMorning).text, /請先/);
+  assert.match(send('確認 5 王小明 guest@example.test', 'line-a', lateMorning).text, /訂位成功/);
+  assert.equal(state.bookings[0].time, '17:30');
+  assert.match(send('確認 5 王小明 guest@example.test', 'line-a', lateMorning).text, /請先/);
+});
+
+test('選了時間後，送出時已過截止或無足夠相鄰桌就不建立訂位', () => {
+  const { state, send } = setup();
+  const cutoff = new Date('2027-01-12T12:00:00+08:00');
+  send('訂位 2027-01-12 12:30', 'line-a', new Date(+cutoff - 60_000));
+  assert.match(send('確認 2 王小明 guest@example.test', 'line-a', cutoff).text, /截止|重新選擇/);
+  send('訂位 2027-01-12 17:00');
+  const records = Array.from({ length: 2 }, (_, index) => ({
+    id: String(index), date: '2027-01-12', time: '17:00',
+    tableIds: index ? ['B04', 'B05', 'B06'] : ['B01', 'B02', 'B03'],
+  }));
+  state.bookings.push(...records);
+  assert.match(send('確認 12 王小明 guest@example.test').text, /相鄰空桌/);
+  assert.equal(state.bookings.length, 2);
+});

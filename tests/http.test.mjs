@@ -77,3 +77,18 @@ test('七筆同時搶午餐四人桌，十二人組只取得兩次且分配互�
   assert.equal(new Set(result.bookings.flatMap(booking => booking.tableIds)).size, 6);
   assert.equal(result.availability.maxParty, 6);
 });
+
+test('經簽章驗證的日期選擇事件會透過 LINE 回傳可選時段', async t => {
+  const { send, replyCalls } = await setup(t);
+  await send([event('start-booking', '訂位')]);
+  const dateAction = replyCalls[0]?.message.quickReply?.items[0].action;
+  assert.equal(dateAction?.mode, 'date');
+  const dateEvent = {
+    ...event('pick-date', ''),
+    type: 'postback',
+    message: undefined,
+    postback: { data: dateAction.data, params: { date: '2027-01-12' } },
+  };
+  assert.equal((await send([dateEvent])).status, 200);
+  assert.equal(replyCalls[1]?.message.quickReply.items.length, 6);
+});

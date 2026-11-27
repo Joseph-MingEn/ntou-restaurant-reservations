@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { handleLineMessage } from './site/line.js?v=5';
+import { handleLineMessage } from './site/line.js?v=6';
 import { cancelBooking, getService, setArrival } from './site/reservations.js?v=3';
 
 const staticFiles = new Map([
@@ -97,9 +97,13 @@ export function createServer({
   }
 
   async function processEvent(event) {
-    if (event?.type !== 'message' || event.mode !== 'active' || event.source?.type !== 'user' ||
+    if (event?.mode !== 'active' || event.source?.type !== 'user' ||
         typeof event.source.userId !== 'string' || typeof event.replyToken !== 'string' ||
-        !/^[a-zA-Z0-9_-]{1,100}$/.test(event.webhookEventId ?? '') || !event.message) return;
+        !/^[a-zA-Z0-9_-]{1,100}$/.test(event.webhookEventId ?? '')) return;
+    const inbound = event.type === 'postback' && event.postback
+      ? { ...event.postback, type: 'postback' }
+      : event.type === 'message' && event.message;
+    if (!inbound) return;
     const id = event.webhookEventId;
     const user = 'line:' + event.source.userId;
     const now = clock();
@@ -111,7 +115,10 @@ export function createServer({
       for (const [key, value] of Object.entries(next.locationRequests)) {
         if (value.until <= +now) delete next.locationRequests[key];
       }
-      const message = handleLineMessage(next, event.message, {
+      for (const [key, value] of Object.entries(next.bookingDrafts ?? {})) {
+        if (value.until <= +now) delete next.bookingDrafts[key];
+      }
+      const message = handleLineMessage(next, inbound, {
         user, now, createId: () => 'R-' + randomUUID().split('-').join('').toUpperCase(),
       });
       Object.defineProperty(next.events, id, {

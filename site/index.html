@@ -7,7 +7,7 @@
   <meta name="description" content="用 LINE 查詢與訂位，從業主看板掌握備餐人數和桌況。">
   <title>餐廳預約系統</title>
   <link rel="stylesheet" href="./style.css?v=4">
-  <script type="module" src="./app.js?v=5"></script>
+  <script type="module" src="./app.js?v=6"></script>
 </head>
 <body>
   <header class="topbar">
@@ -99,6 +99,7 @@
         <section class="panel chat" aria-label="LINE 對話模擬器">
           <div class="chat-head"><span class="chat-avatar" aria-hidden="true">席</span><div><strong>餐廳訂位助手</strong><div>LINE 對話模擬</div></div></div>
           <div id="messages" class="messages" role="log" aria-label="訂位對話" aria-live="polite"></div>
+          <div id="chat-choices" class="quick-actions" aria-label="訂位選項" hidden></div>
           <div class="quick-actions" aria-label="快捷操作">
             <button id="quick-help" type="button">指令說明 /help</button>
             <button id="quick-find" type="button">查詢空桌</button>
