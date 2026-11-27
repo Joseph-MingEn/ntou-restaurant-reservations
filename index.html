@@ -7,7 +7,7 @@
   <meta name="description" content="用 LINE 查詢與訂位，從業主看板掌握備餐人數和桌況。">
   <title>餐廳預約系統</title>
   <link rel="stylesheet" href="./style.css?v=4">
-  <script type="module" src="./app.js?v=3"></script>
+  <script type="module" src="./app.js?v=5"></script>
 </head>
 <body>
   <header class="topbar">
@@ -92,7 +92,7 @@
         </div>
       </div>
       <div class="line-official">
-        <div><strong>在 LINE 正式訂位</strong><p>加入官方帳號 @291hdbqn，傳送「查詢」查看操作方式。下方可試用網頁模擬。</p></div>
+        <div><strong>在 LINE 正式訂位</strong><p>加入官方帳號 @291hdbqn，傳送「/help」查看指令。下方可試用網頁模擬。</p></div>
         <a class="primary" href="https://line.me/R/ti/p/%40291hdbqn">開啟 LINE 官方帳號</a>
       </div>
       <div class="line-layout">
@@ -100,6 +100,7 @@
           <div class="chat-head"><span class="chat-avatar" aria-hidden="true">席</span><div><strong>餐廳訂位助手</strong><div>LINE 對話模擬</div></div></div>
           <div id="messages" class="messages" role="log" aria-label="訂位對話" aria-live="polite"></div>
           <div class="quick-actions" aria-label="快捷操作">
+            <button id="quick-help" type="button">指令說明 /help</button>
             <button id="quick-find" type="button">查詢空桌</button>
             <button id="quick-book" type="button">開始訂位</button>
             <button id="quick-mine" type="button">我的訂位</button>
