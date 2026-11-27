@@ -1,7 +1,7 @@
 import {
   MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, getAvailability, getDiningIds, getService, isActive, setArrival, today,
-} from './reservations.js?v=13';
-import { handleLineMessage } from './line.js?v=13';
+} from './reservations.js?v=14';
+import { handleLineMessage } from './line.js?v=14';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -137,18 +137,18 @@ function drawService(service) {
 function drawSlotGuests(service) {
   const time = timeSelect.value;
   const bookings = service.bookings.filter(booking => booking.time === time);
-  const active = bookings.filter(isActive);
-  const guests = active.reduce((sum, booking) => sum + booking.party, 0);
-  byId('guest-summary').textContent =
-    time + '–' + endTime(time) + ' · ' + active.length + ' 組 · ' + guests + ' 人';
+  let shown = bookings.filter(isActive);
   if (animationMode) {
     const dining = new Set(getDiningIds(service.bookings, dateInput.value, time));
-    const seated = service.bookings.filter(booking => dining.has(booking.id));
-    drawGuestMap(service.availability.tables, seated);
+    shown = service.bookings.filter(booking => dining.has(booking.id));
+    drawGuestMap(service.availability.tables, shown);
   } else {
     const rows = bookings.map(bookingRow);
     byId('booking-list').replaceChildren(...(rows.length ? rows : [element('li', '這個入座時間尚無訂位。', 'empty')]));
   }
+  const guests = shown.reduce((sum, booking) => sum + booking.party, 0);
+  byId('guest-summary').textContent =
+    time + '–' + endTime(time) + ' · ' + shown.length + ' 組 · ' + guests + ' 人';
 }
 
 function drawGuestMap(tables, bookings) {

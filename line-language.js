@@ -1,4 +1,4 @@
-import { today } from './reservations.js?v=13';
+import { today } from './reservations.js?v=14';
 
 const DAY_MS = 86_400_000;
 const digits = '零一二三四五六七八九';
