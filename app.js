@@ -1,7 +1,8 @@
 import {
   DEFAULT_OPERATIONS, MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, estimateOperations, getAvailability, getSeatAssignments, getService, isActive, setArrival, today,
 } from './reservations.js?v=17';
-import { handleLineMessage } from './line.js?v=20';
+import { handleLineMessage } from './line.js?v=21';
+import { VENUE_NAME, VENUE_ADDRESS, VENUE_MAP_URL } from './venue.js?v=21';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -493,7 +494,14 @@ function showAvailability() {
 }
 
 function addBubble(text, customer = false) {
-  messages.append(element('p', text, 'bubble' + (customer ? ' user' : '')));
+  const bubble = element('p', text, 'bubble' + (customer ? ' user' : ''));
+  if (!customer && text.includes(VENUE_MAP_URL)) {
+    const [before, after] = text.split(VENUE_MAP_URL);
+    const map = element('a', '在 Google 地圖開啟');
+    map.href = VENUE_MAP_URL;
+    bubble.replaceChildren(before, map, after);
+  }
+  messages.append(bubble);
   messages.scrollTop = messages.scrollHeight;
 }
 
@@ -587,6 +595,10 @@ setInterval(() => {
 }, 15_000);
 
 if (demo) {
+  const venueLink = byId('venue-map');
+  venueLink.textContent = VENUE_NAME + ' · ' + VENUE_ADDRESS;
+  venueLink.href = VENUE_MAP_URL;
+  venueLink.parentElement.hidden = false;
   demoState = readDemo();
   await changeDemo(() => {});
   guestDate.min = today();
@@ -631,7 +643,7 @@ if (demo) {
     try {
       const command = ['訂位', data.get('date'), data.get('time'), data.get('party'), customer, '|', data.get('contact')].join(' ');
       const feedback = await sendChat({ type: 'text', text: command });
-      announce(byId('guest-status'), feedback);
+      announce(byId('guest-status'), feedback.replace(VENUE_MAP_URL, '').trim());
     } catch (error) {
       announce(byId('guest-status'), error.message);
     } finally {
