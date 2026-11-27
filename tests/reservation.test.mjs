@@ -102,3 +102,11 @@ test('依選取時間區分預約中、用餐中與空桌，取消的桌不占�
   assert.equal(getSeatAssignments(records, request.date, '12:30').get(later.tableId).status, 'dining');
   assert.equal(getSeatAssignments(records, request.date, '17:00').size, 0);
 });
+
+test('單日餐費以午晚餐有效訂位人數合計，未輸入費用時可顯示人數', async () => {
+  const { estimateDailyMealCost } = await import('../site/reservations.js');
+  assert.deepEqual(estimateDailyMealCost(9, 3, 125.75), { guests: 12, amount: 1509 });
+  assert.deepEqual(estimateDailyMealCost(9, 3, NaN), { guests: 12, amount: null });
+  assert.deepEqual(estimateDailyMealCost(0, 0, 110), { guests: 0, amount: 0 });
+  assert.deepEqual(estimateDailyMealCost(2, 1, 0), { guests: 3, amount: 0 });
+});

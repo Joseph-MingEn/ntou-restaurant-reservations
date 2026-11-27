@@ -64,6 +64,21 @@ select { appearance: none; padding-right: 2rem; background:
 .metric-value { margin: .15rem 0; font-size: clamp(1.85rem, 4vw, 2.65rem); font-weight: 800; line-height: 1.16; font-variant-numeric: tabular-nums; }
 .metric-value small { font-size: .95rem; font-weight: 650; margin-left: .28rem; }
 .metric-note { color: var(--muted); font-size: .855rem; }
+.meal-budget {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(8.5rem, .6fr) minmax(0, .85fr);
+  align-items: center;
+  gap: .8rem;
+  margin-bottom: .95rem;
+}
+.meal-budget label { min-width: 0; }
+.meal-budget input { width: 100%; }
+.meal-budget-note { margin-top: .25rem; font-size: .88rem; color: var(--muted); }
+.meal-budget-total { color: var(--green-dark); font-weight: 800; font-size: 1.2rem; text-align: right; }
+@media (max-width: 36rem) {
+  .meal-budget { grid-template-columns: 1fr; }
+  .meal-budget-total { text-align: left; }
+}
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); align-items: start; gap: .9rem; }
 .panel { padding: 1.18rem; min-width: 0; }
 .panel-top { display: flex; align-items: start; justify-content: space-between; gap: .8rem; margin-bottom: .9rem; }
