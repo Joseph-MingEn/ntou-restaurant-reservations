@@ -1,7 +1,7 @@
 import {
-  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, getAvailability, getService, isActive, setArrival, today,
-} from './reservations.js?v=8';
-import { handleLineMessage } from './line.js?v=8';
+  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, getAvailability, getDiningIds, getService, isActive, setArrival, today,
+} from './reservations.js?v=12';
+import { handleLineMessage } from './line.js?v=12';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -142,7 +142,9 @@ function drawSlotGuests(service) {
   byId('guest-summary').textContent =
     time + '–' + endTime(time) + ' · ' + active.length + ' 組 · ' + guests + ' 人';
   if (animationMode) {
-    drawGuestMap(service.availability.tables, active);
+    const dining = new Set(getDiningIds(service.bookings, dateInput.value, time));
+    const seated = service.bookings.filter(booking => dining.has(booking.id));
+    drawGuestMap(service.availability.tables, seated);
   } else {
     const rows = bookings.map(bookingRow);
     byId('booking-list').replaceChildren(...(rows.length ? rows : [element('li', '這個入座時間尚無訂位。', 'empty')]));
@@ -158,7 +160,6 @@ function drawGuestMap(tables, bookings) {
       const guests = Math.min(remaining, tableById.get(tableId).capacity);
       assigned.set(tableId, {
         guests, index, combined: bookingTables(booking).length > 1,
-        arrived: booking.status === 'arrived',
       });
       remaining -= guests;
     }
@@ -173,10 +174,7 @@ function drawGuestMap(tables, bookings) {
       const status = assignment ? assignment.guests + ' 人' : table.occupied ? '保留' : '空桌';
       const tile = element('li', undefined, 'guest-table');
       if (table.occupied) tile.classList.add('held');
-      if (assignment) {
-        tile.classList.add('assigned');
-        tile.dataset.palette = assignment.index % 4;
-      }
+      if (assignment) tile.classList.add('dining');
       const title = element('strong', table.id);
       const note = element('span', status);
       const people = element('div', undefined, 'seats');
@@ -188,9 +186,8 @@ function drawGuestMap(tables, bookings) {
         people.append(dot);
       }
       tile.append(title, people, note);
-      if (assignment?.combined || assignment?.arrived) {
-        tile.append(element('small', [assignment.combined ? '併桌' : '', assignment.arrived ? '已報到' : ''].filter(Boolean).join(' · ')));
-      }
+      if (assignment) tile.append(element('strong', '用餐中', 'dining-label'));
+      if (assignment?.combined) tile.append(element('small', '併桌'));
       grid.append(tile);
     }
     section.append(grid);

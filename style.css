@@ -195,16 +195,19 @@ meter::-webkit-meter-optimum-value { background: #609170; border-radius: 9px; }
   font-size: .83rem;
 }
 .guest-table.held { background: var(--warm); border-color: #e3c8b3; color: var(--rust); }
-.guest-table.assigned { background: #e4f0e5; border-color: var(--seat-color); color: var(--green-dark); }
-.guest-table[data-palette="1"] { --seat-color: #405980; }
-.guest-table[data-palette="2"] { --seat-color: #825924; }
-.guest-table[data-palette="3"] { --seat-color: #725473; }
+.guest-table.dining {
+  --seat-color: #0759b5;
+  background: #dcecff;
+  border-color: var(--seat-color);
+  color: #0f3764;
+}
+.guest-table strong.dining-label { color: #0a437e; font-size: .8rem; }
 .guest-table strong { font-size: .95rem; font-variant-numeric: tabular-nums; }
 .guest-table small { color: var(--muted); font-size: .75rem; }
 .seats { display: grid; grid-template-columns: repeat(2, .55rem); justify-content: center; gap: .16rem; min-height: 1.24rem; padding: .08rem 0; }
 .seats i { width: .55rem; height: .55rem; border-radius: 50%; border: 1px solid #a7b8a9; }
 .seats .occupied-seat { background: var(--seat-color); border-color: var(--seat-color); animation: take-seat 420ms ease-out both; animation-delay: var(--seat-delay); }
-.legend i.legend-active { background: #1f6347; border-color: #1f6347; border-radius: 50%; }
+.legend i.legend-dining { background: #0759b5; border-color: #0759b5; border-radius: 50%; }
 #guest-map-view .legend { flex-wrap: wrap; }
 #guest-map-view .legend span:nth-child(2) i { background: var(--warm); border-color: #c8a180; }
 @keyframes take-seat {
