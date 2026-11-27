@@ -1,5 +1,6 @@
 import { diningTime } from './site/reservations.js?v=8';
 import { reminderRecipient } from './gmail.mjs';
+import { VENUE_DETAILS } from './site/venue.js';
 
 const MINUTE = 60_000;
 
@@ -44,6 +45,8 @@ export async function deliverReminders({ getState, commit, clock, sendReminder }
           '用餐日期 ' + booking.date,
           '入座時間 ' + booking.time + '（台灣時間）',
           '用餐人數 ' + booking.party + ' 人',
+          '',
+          ...VENUE_DETAILS.split('\n'),
           '',
           '如需查看或更改訂位，請回到原 LINE 對話傳送 /help。',
         ].join('\r\n'),

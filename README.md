@@ -2,7 +2,7 @@
 
 [業主看板](https://joseph-mingen.github.io/ntou-restaurant-reservations/#admin) · [LINE 訂位展示](https://joseph-mingen.github.io/ntou-restaurant-reservations/#line) · [LINE 官方帳號 @291hdbqn](https://line.me/R/ti/p/%40291hdbqn)
 
-單店配有 6 張兩人桌、6 張四人桌。午餐營業 11:30–14:30，晚餐營業 17:00–20:00。每組最多用餐 2 小時，入座前 30 分鐘停止接受訂位。時段均為台灣時間。
+單店配有 6 張兩人桌、6 張四人桌。午餐營業 11:30–14:30，晚餐營業 17:00–20:00。每組最多用餐 2 小時，入座前 30 分鐘停止接受訂位。時段均為台灣時間。用餐地點設在台北 101 大樓（台北市信義區信義路五段7號）。
 
 ## 試用展示
 
@@ -50,6 +50,7 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory site
 | `我的訂位` | 查詢本人有效訂位 |
 | `改期 訂位編號 YYYY-MM-DD 17:00 3` | 更改日期、時間或人數 |
 | `取消 訂位編號` | 取消訂位 |
+| `餐廳地址` | 查看台北 101 的到店地址和地圖 |
 | `定位 訂位編號` | 在 10 分鐘內透過 LINE 分享位置 |
 
 GitHub Pages 的 `gh-pages` 分支由 `site/` 的內容發佈，使用根目錄。正式服務、測試與文件存放於 `main`。LINE Webhook 驗證使用伺服器的簽章配置。線上接受真實客人之前，需在實際 LINE 帳號和 HTTPS 主機完成驗證，並確定保存期限、備份復原及店家管理權限在營運中可執行。

@@ -1,3 +1,4 @@
+import { VENUE_DETAILS } from './venue.js?v=21';
 import { readBookingRequest, readParty } from './line-language.js?v=17';
 import { bookingTables, cancelBooking, createBooking, DEADLINE_MINUTES, diningTime, endTime, getAvailability, isActive, MAX_PARTY, MEALS, moveBooking, TIMES, today } from './reservations.js?v=17';
 
@@ -180,7 +181,7 @@ function finishBooking(state, date, time, details, { user, now, createId, emailR
   if (state.bookingDrafts) delete state.bookingDrafts[user];
   const reminder = emailReminders?.(booking.contact)
     ? '\n\n用餐提醒會透過 Email 在入座前 2 小時和 30 分鐘寄出。' : '';
-  return reply(`訂位成功！\n\n${bookingDetails(booking)}${reminder}`);
+  return reply(`訂位成功！\n\n${bookingDetails(booking)}\n\n${VENUE_DETAILS}${reminder}`);
 }
 function help(now, emailReminders) {
   const date = today(new Date(+now + 86_400_000));
@@ -214,6 +215,10 @@ function help(now, emailReminders) {
 【取消訂位】
 取消 訂位編號
 
+【查看餐廳地址】
+餐廳地址
+回覆會提供用餐地點的地址和地圖。
+
 【分享定位（選填）】
 找不到餐廳時，可把選擇的地圖位置附到自己的訂位。
 店家可在業主後台查看，方便協助指路。
@@ -238,6 +243,7 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
     const text = message.text.normalize('NFKC').trim();
     const [command, ...fields] = text.split(/\s+/);
     if (command.toLowerCase() === '/help' && fields.length === 0) return help(now, emailReminders);
+    if (command === '餐廳地址' && fields.length === 0) return reply(VENUE_DETAILS);
     const [date, time] = fields;
     if (command === '查詢' && DATE.test(date ?? '') && (fields.length === 1 || fields.length === 2 && CLOCK.test(time ?? ''))) {
       return queryAvailability(state, date, time, user, now);
@@ -269,7 +275,7 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
         diningTime(item.date, item.time) + 7_200_000 > +now)
         .sort((first, second) => diningTime(first.date, first.time) - diningTime(second.date, second.time));
       const summary = mine.slice(0, 40).map(bookingDetails).join('\n\n');
-      return reply(summary ? '我的訂位\n\n' + summary : '目前沒有有效訂位。');
+      return reply(summary ? '我的訂位\n\n' + summary + '\n\n' + VENUE_DETAILS : '目前沒有有效訂位。');
     }
     if (command === '改期' && fields.length === 4) {
       const [id, newDate, newTime, newParty] = fields;
@@ -277,7 +283,7 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
         { date: newDate, time: newTime, party: Number(newParty) }, now);
       const pending = state.locationRequests[user];
       if (pending?.id === booking.id) delete state.locationRequests[user];
-      return reply(`改期成功！\n\n${bookingDetails(booking)}`);
+      return reply(`改期成功！\n\n${bookingDetails(booking)}\n\n${VENUE_DETAILS}`);
     }
     if (command === '取消' && fields.length === 1) {
       const booking = cancelBooking(state.bookings, date.toUpperCase(), user);

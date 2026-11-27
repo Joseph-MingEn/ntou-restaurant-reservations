@@ -180,7 +180,7 @@ test('查位回覆逐項換行，多個時段之間留空行', () => {
 test('建立、查詢本人訂位及改期的結果，各欄位分行', () => {
   const { send } = setup();
   const created = send('訂位 2027-01-12 12:30 2 林小安 guest@example.test').text;
-  assert.match(created, /^訂位成功！\n\n訂位編號 R-001\n用餐日期 2027-01-12\n用餐時段 12:30–14:30\n人數 2 人\n桌號 A01$/);
+  assert.match(created, /^訂位成功！\n\n訂位編號 R-001\n用餐日期 2027-01-12\n用餐時段 12:30–14:30\n人數 2 人\n桌號 A01\n\n用餐地點\n/);
   send('訂位 2027-01-13 12:30 2 林小安 guest@example.test');
   assert.match(send('我的訂位').text, /桌號 A01\n\n訂位編號 R-001\n用餐日期 2027-01-13/);
   assert.match(send('改期 R-001 2027-01-12 17:30 2').text, /^改期成功！\n\n訂位編號 R-001\n用餐日期 2027-01-12\n用餐時段 17:30–19:30/);
@@ -195,4 +195,20 @@ test('/help 的定位小節清楚說明選填、用途與手機操作步驟', ()
   assert.match(location, /業主後台/);
   assert.match(location, /1\. 傳送「定位 訂位編號」/);
   assert.match(location, /2\. 在 10 分鐘內，用手機 LINE 點「分享定位」/);
+});
+
+test('可在 LINE 查台北 101 地址，訂位成功、查訂位和改期也提供同一個地圖', () => {
+  const { state, send } = setup();
+  const venue = send('餐廳地址');
+  assert.match(send('/help').text, /餐廳地址/);
+  assert.match(venue.text, /台北 101\n台北市信義區信義路五段7號/);
+  const map = new URL(venue.text.split('\n').at(-1));
+  assert.equal(map.hostname, 'www.google.com');
+  assert.match(map.searchParams.get('query'), /台北 101.*信義路五段7號/);
+  assert.equal(state.bookings.length, 0);
+  for (const command of [
+    '訂位 2027-01-12 17:00 2 林小安 guest@example.test',
+    '我的訂位',
+    '改期 R-001 2027-01-12 17:30 2',
+  ]) assert.ok(send(command).text.includes(venue.text), command);
 });

@@ -53,6 +53,7 @@ test('排程僅補當前提醒，排除已報到、取消、未到及電話訂�
   assert.equal(deliveries.length, 1);
   assert.match(deliveries[0].subject, /30 分鐘/);
   assert.equal(deliveries[0].to, 'valid@example.test');
+  assert.match(deliveries[0].body, /台北 101\r\n台北市信義區信義路五段7號/);
   now = new Date(+now + 4 * 60_000);
   await run();
   assert.equal(deliveries.length, 1);
