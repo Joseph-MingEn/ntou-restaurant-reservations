@@ -1,7 +1,7 @@
 import {
   MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, getService, isActive, setArrival, today,
 } from './reservations.js?v=3';
-import { handleLineMessage } from './line.js?v=6';
+import { handleLineMessage } from './line.js?v=7';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -456,7 +456,7 @@ if (demo) {
     });
   }
   showAvailability();
-  addBubble('你好！可以先查詢空桌，或選擇日期、人數與時間來訂位。每組最多兩小時，入座前 30 分鐘截止。輸入 /help 可查看所有指令。');
+  addBubble('你好！可以直接問「明天晚上五點半，五位，有位嗎？」。每組最多用餐兩小時，入座前 30 分鐘截止。輸入 /help 可查看所有指令。');
   const sendText = text => sendChat({ type: 'text', text }).catch(error => addBubble(error.message));
   byId('quick-help').addEventListener('click', () => void sendText('/help'));
   byId('quick-find').addEventListener('click', () => void sendText('查詢 ' + (guestDate.value || sampleDate)));
