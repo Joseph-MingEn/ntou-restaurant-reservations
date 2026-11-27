@@ -103,10 +103,30 @@ test('依選取時間區分預約中、用餐中與空桌，取消的桌不占�
   assert.equal(getSeatAssignments(records, request.date, '17:00').size, 0);
 });
 
-test('單日餐費以午晚餐有效訂位人數合計，未輸入費用時可顯示人數', async () => {
-  const { estimateDailyMealCost } = await import('../site/reservations.js');
-  assert.deepEqual(estimateDailyMealCost(9, 3, 125.75), { guests: 12, amount: 1509 });
-  assert.deepEqual(estimateDailyMealCost(9, 3, NaN), { guests: 12, amount: null });
-  assert.deepEqual(estimateDailyMealCost(0, 0, 110), { guests: 0, amount: 0 });
-  assert.deepEqual(estimateDailyMealCost(2, 1, 0), { guests: 3, amount: 0 });
+test('預設以實際月份攤提人事、租金與水電，計算全天營業額和盈餘', async () => {
+  const { DEFAULT_OPERATIONS, estimateOperations } = await import('../site/reservations.js');
+  const estimate = estimateOperations('2026-11-28', 22, DEFAULT_OPERATIONS);
+  assert.equal(estimate.days, 30);
+  assert.deepEqual(estimate.items.map(item => item.total), [6600, 1200, 200, 200, 0]);
+  assert.equal(estimate.revenue, 22000);
+  assert.equal(estimate.cost, 8200);
+  assert.equal(estimate.profit, 13800);
+  assert.equal(estimate.margin, 13800 / 22000);
+  assert.equal(estimate.breakEven, 3);
+});
+
+test('成本支援月底、員工數、按日與按位，零營業額亦計入固定成本', async () => {
+  const { DEFAULT_OPERATIONS, estimateOperations } = await import('../site/reservations.js');
+  const settings = structuredClone(DEFAULT_OPERATIONS);
+  settings.staffCount = 2;
+  settings.costs.push({ name: '包材', amount: 20, basis: 'guest' }, { name: '清潔', amount: 100, basis: 'day' });
+  const estimate = estimateOperations('2024-02-05', 0, settings);
+  assert.equal(estimate.days, 29);
+  assert.equal(estimate.items[1].total, 2482.76);
+  assert.equal(estimate.revenue, 0);
+  assert.equal(estimate.profit, -2996.56);
+  assert.equal(estimate.margin, null);
+  assert.equal(estimate.breakEven, 5);
+  assert.equal(estimateOperations('2024-02-05', 10, { ...settings, price: 320 }).breakEven, null);
+  assert.equal(estimateOperations('2024-02-05', 10, { ...settings, price: -1 }), null);
 });

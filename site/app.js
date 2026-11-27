@@ -1,7 +1,7 @@
 import {
-  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, estimateDailyMealCost, getAvailability, getSeatAssignments, getService, isActive, setArrival, today,
-} from './reservations.js?v=16';
-import { handleLineMessage } from './line.js?v=16';
+  DEFAULT_OPERATIONS, MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, estimateOperations, getAvailability, getSeatAssignments, getService, isActive, setArrival, today,
+} from './reservations.js?v=17';
+import { handleLineMessage } from './line.js?v=17';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -15,8 +15,13 @@ const guestDate = reserveForm.elements.namedItem('date');
 const guestTime = reserveForm.elements.namedItem('time');
 const guestParty = reserveForm.elements.namedItem('party');
 const adminFeedback = byId('admin-status');
-const mealRate = byId('meal-rate');
-const rateKey = storeKey + '-meal-rate';
+const operationsKey = storeKey + '-operation-settings';
+const costFields = byId('cost-fields');
+const operationsInputs = {
+  price: byId('guest-price'), food: byId('food-cost'), staffCount: byId('staff-count'),
+};
+const costBasis = { month: '每月', day: '每日', guest: '每位客人' };
+const amountIds = ['daily-revenue', 'daily-cost', 'daily-profit', 'daily-margin', 'daily-break-even'];
 const currency = new Intl.NumberFormat('zh-TW', {
   style: 'currency', currency: 'TWD', minimumFractionDigits: 0, maximumFractionDigits: 2,
 });
@@ -308,32 +313,132 @@ async function api(path, options = {}) {
   return result;
 }
 
-function drawDailyMealCost() {
-  const total = byId('meal-budget-total');
-  if (!dailyMeals) {
-    byId('meal-budget-count').textContent = '請指定營業日期';
-    total.textContent = '';
-    return;
+function loadOperations() {
+  const defaults = structuredClone(DEFAULT_OPERATIONS);
+  try {
+    const saved = JSON.parse(localStorage.getItem(operationsKey));
+    if (saved && Array.isArray(saved.costs) && saved.costs.length >= defaults.costs.length &&
+        saved.costs.every(item => typeof item?.name === 'string' && Object.hasOwn(costBasis, item.basis)) &&
+        estimateOperations('2026-01-01', 0, saved)) return saved;
+  } catch {
+    // Use the configured defaults when storage cannot be read.
   }
-  const { lunch, dinner } = dailyMeals;
-  const { guests, amount } = estimateDailyMealCost(lunch, dinner, mealRate.valueAsNumber);
-  byId('meal-budget-count').textContent = '午餐 ' + lunch + ' 人 · 晚餐 ' + dinner + ' 人 · 全天 ' + guests + ' 人';
-  total.textContent = amount === null ? '填入每人餐費即可估算' : currency.format(amount);
+  return defaults;
 }
 
-try {
-  mealRate.value = localStorage.getItem(rateKey) ?? '';
-} catch {
-  // The estimate remains usable when browser storage is unavailable.
-}
-mealRate.addEventListener('input', () => {
-  drawDailyMealCost();
-  try {
-    localStorage.setItem(rateKey, mealRate.value);
-  } catch {
-    // Keep the current amount in the input for this visit.
+const operations = loadOperations();
+const percent = new Intl.NumberFormat('zh-TW', { style: 'percent', maximumFractionDigits: 2 });
+
+function drawOperations() {
+  const date = dateInput.value;
+  const { lunch, dinner } = dailyMeals ?? {};
+  const guests = lunch + dinner;
+  const estimate = dailyMeals && estimateOperations(date, guests, operations);
+  const count = byId('meal-budget-count');
+  const breakdown = byId('cost-breakdown');
+  announce(byId('operations-feedback'), dailyMeals && !estimate ? '請填寫有效的金額與員工人數。' : '');
+  count.textContent = dailyMeals
+    ? '全天 ' + guests + ' 人 · 月費按 ' + (estimate?.days ?? '當月實際') + ' 天攤提 · 新台幣'
+    : '請指定營業日期';
+  if (!estimate) {
+    for (const id of amountIds) byId(id).textContent = '—';
+    breakdown.replaceChildren();
+    return;
   }
+  byId('daily-revenue').textContent = currency.format(estimate.revenue);
+  byId('daily-cost').textContent = currency.format(estimate.cost);
+  const profit = byId('daily-profit');
+  profit.textContent = currency.format(estimate.profit);
+  profit.classList.toggle('negative', estimate.profit < 0);
+  byId('daily-margin').textContent = estimate.margin === null ? '—' : percent.format(estimate.margin);
+  byId('daily-break-even').textContent = estimate.breakEven === null ? '無法靠增加客人打平' : estimate.breakEven + ' 人';
+  breakdown.replaceChildren(...estimate.items.map(item => {
+    const row = element('div');
+    row.append(element('dt', item.name), element('dd', currency.format(item.total)));
+    return row;
+  }));
+}
+
+function saveOperations() {
+  drawOperations();
+  if (!estimateOperations('2026-01-01', 0, operations)) return;
+  try {
+    localStorage.setItem(operationsKey, JSON.stringify(operations));
+  } catch {
+    // Changes can still be used during this visit.
+  }
+}
+
+for (const [key, input] of Object.entries(operationsInputs)) {
+  input.value = operations[key];
+  input.addEventListener('input', () => {
+    operations[key] = input.valueAsNumber;
+    saveOperations();
+  });
+}
+
+function drawCostFields() {
+  const defaultsCount = DEFAULT_OPERATIONS.costs.length;
+  costFields.replaceChildren(...operations.costs.map((item, index) => {
+    const custom = index >= defaultsCount;
+    const row = element('div', undefined, 'cost-field');
+    if (custom) {
+      const name = element('input');
+      name.value = item.name;
+      name.maxLength = 40;
+      name.setAttribute('aria-label', '自訂成本名稱');
+      name.addEventListener('input', () => {
+        item.name = name.value.trim() || '自訂成本';
+        saveOperations();
+      });
+      row.append(name);
+    } else {
+      row.append(element('strong', item.name + (index === 0 ? '（每位員工）' : '')));
+    }
+
+    const amount = element('input');
+    amount.type = 'number';
+    amount.min = '0';
+    amount.step = '0.01';
+    amount.inputMode = 'decimal';
+    amount.value = Number.isFinite(item.amount) ? item.amount : '';
+    amount.setAttribute('aria-label', item.name + '金額（元）');
+    amount.addEventListener('input', () => {
+      item.amount = amount.valueAsNumber;
+      saveOperations();
+    });
+
+    const basis = element('select');
+    basis.setAttribute('aria-label', item.name + '計費方式');
+    basis.replaceChildren(...Object.entries(costBasis).map(([value, label]) => new Option(label, value)));
+    basis.value = item.basis;
+    basis.addEventListener('change', () => {
+      item.basis = basis.value;
+      saveOperations();
+    });
+    row.append(amount, basis);
+    if (custom) {
+      const remove = element('button', '移除', 'secondary');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', '移除此成本');
+      remove.addEventListener('click', () => {
+        operations.costs.splice(index, 1);
+        drawCostFields();
+        saveOperations();
+      });
+      row.append(remove);
+    }
+    return row;
+  }));
+}
+
+byId('add-cost').addEventListener('click', () => {
+  operations.costs.push({ name: '自訂成本', amount: 0, basis: 'day' });
+  drawCostFields();
+  saveOperations();
+  costFields.lastElementChild.querySelector('input').focus();
 });
+drawCostFields();
 
 async function refreshAdmin() {
   if (!demo && !adminKey) return false;
@@ -342,7 +447,7 @@ async function refreshAdmin() {
   const time = timeSelect.value;
   if (!date || !time) {
     dailyMeals = undefined;
-    drawDailyMealCost();
+    drawOperations();
     byId('admin-data').hidden = !time;
     announce(adminFeedback, '請指定營業日期。');
     return false;
@@ -357,7 +462,7 @@ async function refreshAdmin() {
     const [service, otherService] = await Promise.all([loadService(time), loadService(otherTime)]);
     if (epoch !== renderEpoch) return false;
     dailyMeals = { [selectedMeal]: service.guests, [otherMeal]: otherService.guests };
-    drawDailyMealCost();
+    drawOperations();
     const snapshot = JSON.stringify([date, time, Math.floor(Date.now() / 60_000), service]);
     if (lastService !== snapshot) {
       drawService(service);
@@ -368,7 +473,7 @@ async function refreshAdmin() {
   } catch (error) {
     if (epoch === renderEpoch) {
       dailyMeals = undefined;
-      drawDailyMealCost();
+      drawOperations();
       announce(adminFeedback, error.message);
     }
     return false;
