@@ -8,6 +8,37 @@ export const TABLES = [2, 4].flatMap((capacity, group) =>
     id: `${group === 0 ? 'A' : 'B'}0${index + 1}`, capacity,
   }))
 );
+export const MAX_PARTY = 12;
+
+function adjacent(first, second) {
+  const sameRow = first.id[0] === second.id[0];
+  const columnDistance = Math.abs(Number(first.id.slice(1)) - Number(second.id.slice(1)));
+  return sameRow ? columnDistance === 1 : columnDistance === 0;
+}
+
+const configurations = new Map();
+for (const table of TABLES) configurations.set(table.id, [table]);
+for (let size = 1; size < 3; size++) {
+  for (const group of [...configurations.values()].filter(item => item.length === size)) {
+    for (const table of TABLES) {
+      if (group.includes(table) || !group.some(member => adjacent(member, table))) continue;
+      const next = [...group, table].sort((first, second) => first.id.localeCompare(second.id));
+      configurations.set(next.map(member => member.id).join(','), next);
+    }
+  }
+}
+const seatingOptions = [...configurations.values()].map(group => ({
+  ids: group.map(table => table.id),
+  capacity: group.reduce((sum, table) => sum + table.capacity, 0),
+})).sort((first, second) =>
+  first.capacity - second.capacity || first.ids.length - second.ids.length ||
+  first.ids.join(',').localeCompare(second.ids.join(','))
+);
+
+export function bookingTables(booking) {
+  return booking.tableIds ?? [booking.tableId];
+}
+
 const MINUTE = 60_000;
 const DURATION = 120 * MINUTE;
 export const DEADLINE_MINUTES = 30;
@@ -43,16 +74,17 @@ export function getAvailability(records, date, time, now = new Date()) {
     if (booking.date !== date || !isActive(booking)) continue;
     const otherStart = diningTime(booking.date, booking.time);
     if (otherStart < start + DURATION && start < otherStart + DURATION) {
-      occupied.set(booking.tableId, booking);
+      for (const id of bookingTables(booking)) occupied.set(id, booking);
     }
   }
   const tables = TABLES.map(table => ({ ...table, occupied: occupied.has(table.id) }));
   const free = tables.filter(table => !table.occupied);
+  const options = seatingOptions.filter(option => option.ids.every(id => !occupied.has(id)));
   return {
     tables, seats: free.reduce((sum, table) => sum + table.capacity, 0),
     two: free.filter(table => table.capacity === 2).length,
     four: free.filter(table => table.capacity === 4).length,
-    maxParty: free.at(-1)?.capacity ?? 0,
+    maxParty: options.at(-1)?.capacity ?? 0,
     open: now.getTime() < start - DEADLINE_MINUTES * MINUTE,
   };
 }
@@ -60,7 +92,7 @@ export function getAvailability(records, date, time, now = new Date()) {
 export function createBooking(records, request, { now = new Date(), id, owner = '' } = {}) {
   const { date, time, party } = request;
   const availability = getAvailability(records, date, time, now);
-  if (!Number.isInteger(party) || party < 1 || party > 4) throw new Error('每組限 1 至 4 人。');
+  if (!Number.isInteger(party) || party < 1 || party > MAX_PARTY) throw new Error('每組限 1 至 12 人。');
   const name = typeof request.name === 'string' ? request.name.trim() : '';
   const contact = typeof request.contact === 'string' ? request.contact.trim() : '';
   if (!name || name.length > 40) throw new Error('請輸入姓名（最多 40 字）。');
@@ -68,9 +100,11 @@ export function createBooking(records, request, { now = new Date(), id, owner = 
   const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact);
   if (contact.length > 100 || (!phone && !email)) throw new Error('請輸入有效的電話或 Email。');
   if (!availability.open) throw new Error('已過訂位截止時間（入座前 30 分鐘）。');
-  const table = availability.tables.find(candidate => !candidate.occupied && candidate.capacity >= party);
-  if (!table) throw new Error('此時段沒有能容納這組人數的空桌。');
-  const booking = { id, date, time, party, name, contact, tableId: table.id, owner };
+  const occupied = new Set(availability.tables.filter(table => table.occupied).map(table => table.id));
+  const option = seatingOptions.find(item => item.capacity >= party && item.ids.every(id => !occupied.has(id)));
+  if (!option) throw new Error('此時段沒有足夠的相鄰空桌，請改選時段。');
+  const booking = { id, date, time, party, name, contact, tableId: option.ids[0], owner };
+  if (option.ids.length > 1) booking.tableIds = option.ids.slice();
   records.push(booking);
   return booking;
 }

@@ -1,4 +1,4 @@
-import { cancelBooking, createBooking, diningTime, endTime, getAvailability, isActive, moveBooking, TIMES, today } from './reservations.js';
+import { bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, isActive, MAX_PARTY, moveBooking, TIMES, today } from './reservations.js';
 
 const reply = text => ({ type: 'text', text });
 const help = now => reply(
@@ -15,13 +15,14 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
       const lines = (time ? [time] : TIMES).map(start => {
         const info = getAvailability(state.bookings, date, start, now);
         const status = info.open
-          ? `可接 ${info.seats} 人（兩人桌 ${info.two}、四人桌 ${info.four}）`
+          ? `可接 ${info.seats} 人（最大單組 ${info.maxParty} 人、兩人桌 ${info.two}、四人桌 ${info.four}）`
           : '已截止';
         return `${start}–${endTime(start)}｜${status}`;
       });
       return reply(`${date}\n${lines.join('\n')}`);
     }
     if (command === '訂位' && fields.length >= 5) {
+      if (Number(party) > MAX_PARTY) return reply(`${MAX_PARTY + 1} 人以上請直接聯繫店家安排。`);
       const id = createId();
       const separateAt = fields.indexOf('|', 3);
       const customer = separateAt === -1 ? name : fields.slice(3, separateAt).join(' ');
@@ -29,7 +30,7 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
       const booking = createBooking(state.bookings, {
         date, time, party: Number(party), name: customer, contact: phoneOrEmail,
       }, { now, id, owner: user });
-      return reply(`訂位成功！\n${date} ${time}–${endTime(time)}｜${booking.party} 人｜${booking.tableId} 桌\n訂位編號 ${id}\n\n需要時可傳送「定位 ${id}」，也可略過。`);
+      return reply(`訂位成功！\n${date} ${time}–${endTime(time)}｜${booking.party} 人｜${bookingTables(booking).join('＋')} 桌\n訂位編號 ${id}\n\n需要時可傳送「定位 ${id}」，也可略過。`);
     }
     if (command === '我的訂位' && fields.length === 0) {
       const mine = state.bookings.filter(item => item.owner === user && isActive(item) &&
@@ -44,7 +45,7 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
         { date: newDate, time: newTime, party: Number(newParty) }, now);
       const pending = state.locationRequests[user];
       if (pending?.id === booking.id) delete state.locationRequests[user];
-      return reply(`改期成功！\n${booking.id}｜${newDate} ${newTime}–${endTime(newTime)}｜${booking.party} 人｜${booking.tableId} 桌`);
+      return reply(`改期成功！\n${booking.id}｜${newDate} ${newTime}–${endTime(newTime)}｜${booking.party} 人｜${bookingTables(booking).join('＋')} 桌`);
     }
     if (command === '取消' && fields.length === 1) {
       const booking = cancelBooking(state.bookings, date.toUpperCase(), user);
