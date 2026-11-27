@@ -3,8 +3,8 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { handleLineMessage } from './site/line.js';
-import { cancelBooking, getService, setArrival } from './site/reservations.js';
+import { handleLineMessage } from './site/line.js?v=3';
+import { cancelBooking, getService, setArrival } from './site/reservations.js?v=3';
 
 const staticFiles = new Map([
   ['/admin', ['index.html', 'text/html; charset=utf-8']],

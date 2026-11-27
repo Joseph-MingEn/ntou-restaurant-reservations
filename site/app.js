@@ -1,7 +1,7 @@
 import {
   MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, getService, isActive, setArrival, today,
-} from './reservations.js';
-import { handleLineMessage } from './line.js';
+} from './reservations.js?v=3';
+import { handleLineMessage } from './line.js?v=3';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';

@@ -1,4 +1,4 @@
-import { bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, isActive, MAX_PARTY, moveBooking, TIMES, today } from './reservations.js';
+import { bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, isActive, MAX_PARTY, moveBooking, TIMES, today } from './reservations.js?v=3';
 
 const reply = text => ({ type: 'text', text });
 const help = now => reply(
