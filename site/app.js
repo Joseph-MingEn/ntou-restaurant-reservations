@@ -1,7 +1,7 @@
 import {
   MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, getAvailability, getDiningIds, getService, isActive, setArrival, today,
-} from './reservations.js?v=12';
-import { handleLineMessage } from './line.js?v=12';
+} from './reservations.js?v=13';
+import { handleLineMessage } from './line.js?v=13';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -171,9 +171,8 @@ function drawGuestMap(tables, bookings) {
     const grid = element('ul', undefined, 'guest-map-grid');
     for (const table of tables.filter(item => item.capacity === capacity)) {
       const assignment = assigned.get(table.id);
-      const status = assignment ? assignment.guests + ' 人' : table.occupied ? '保留' : '空桌';
+      const status = assignment ? assignment.guests + ' 人' : '空桌';
       const tile = element('li', undefined, 'guest-table');
-      if (table.occupied) tile.classList.add('held');
       if (assignment) tile.classList.add('dining');
       const title = element('strong', table.id);
       const note = element('span', status);

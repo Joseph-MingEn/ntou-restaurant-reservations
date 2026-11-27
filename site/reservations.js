@@ -54,6 +54,7 @@ export function bookingTables(booking) {
 
 const MINUTE = 60_000;
 const DURATION = 120 * MINUTE;
+const overlapsDining = (start, other) => start < other + DURATION && other < start + DURATION;
 export const DEADLINE_MINUTES = 30;
 const taipeiDate = new Intl.DateTimeFormat('sv-SE', {
   timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -86,7 +87,7 @@ export function getAvailability(records, date, time, now = new Date()) {
   for (const booking of records) {
     if (booking.date !== date || !isActive(booking)) continue;
     const otherStart = diningTime(booking.date, booking.time);
-    if (otherStart < start + DURATION && start < otherStart + DURATION) {
+    if (overlapsDining(start, otherStart)) {
       for (const id of bookingTables(booking)) occupied.set(id, booking);
     }
   }
@@ -168,7 +169,7 @@ export function getDiningIds(bookings, date, time) {
   return bookings.filter(booking => {
     if (booking.date !== date || !isActive(booking)) return false;
     const start = diningTime(booking.date, booking.time);
-    return start <= selected && selected < start + DURATION;
+    return overlapsDining(selected, start);
   }).map(booking => booking.id);
 }
 

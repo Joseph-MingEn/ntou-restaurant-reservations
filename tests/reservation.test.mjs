@@ -86,7 +86,7 @@ test('空桌分散時，總空位達五人也不能預約五人', () => {
   assert.throws(() => createBooking(records, { ...request, party: 5 }, { now }), /相鄰/);
 });
 
-test('桌況動畫以選取時間辨識還在用餐的客人，排除稍後和已取消的訂位', async () => {
+test('桌況動畫顯示整段用餐區間有重疊的訂位，並排除已取消的訂位', async () => {
   const { cancelBooking, getDiningIds } = await import('../site/reservations.js');
   const records = [];
   createBooking(records, { ...request, time: '11:30' }, { now, id: 'early' });
@@ -94,6 +94,6 @@ test('桌況動畫以選取時間辨識還在用餐的客人，排除稍後和�
   createBooking(records, { ...request, time: '12:00' }, { now, id: 'current' });
   createBooking(records, { ...request, time: '12:30' }, { now, id: 'later' });
   cancelBooking(records, 'cancelled');
-  assert.deepEqual(getDiningIds(records, request.date, '12:00'), ['early', 'current']);
+  assert.deepEqual(getDiningIds(records, request.date, '12:00'), ['early', 'current', 'later']);
   assert.deepEqual(getDiningIds(records, request.date, '17:00'), []);
 });
