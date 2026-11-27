@@ -1,15 +1,40 @@
-import { bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, isActive, MAX_PARTY, moveBooking, TIMES, today } from './reservations.js?v=3';
+import { bookingTables, cancelBooking, createBooking, DEADLINE_MINUTES, diningTime, endTime, getAvailability, isActive, MAX_PARTY, moveBooking, TIMES, today } from './reservations.js?v=3';
 
 const reply = text => ({ type: 'text', text });
-const help = now => reply(
-  `可以查詢空桌、訂位、取消或分享定位。\n\n查詢 ${today(now)}\n訂位 YYYY-MM-DD 12:00 2 王小明 0912000000\n我的訂位\n改期 訂位編號 YYYY-MM-DD 12:00 2\n取消 訂位編號\n定位 訂位編號`
-);
+function help(now) {
+  const date = today(new Date(+now + 86_400_000));
+  return reply(`訂位指令 /help
+
+請用空格分隔各項資料，範例中的日期可換成你要用餐的日期。
+
+查詢空位
+查詢 ${date}
+查詢 ${date} 17:00
+
+建立訂位（日期 時間 人數 姓名 電話或 Email）
+訂位 ${date} 17:00 5 王小明 guest@example.test
+
+查看自己的有效訂位
+我的訂位
+
+改日期、時間或人數
+改期 訂位編號 ${date} 17:30 4
+
+取消訂位
+取消 訂位編號
+
+分享位置（傳送後用手機點「分享定位」）
+定位 訂位編號
+
+每組 1–${MAX_PARTY} 人，最多用餐 2 小時，入座前 ${DEADLINE_MINUTES} 分鐘截止。需要時可再傳 /help。`);
+}
 
 export function handleLineMessage(state, message, { user, now = new Date(), createId }) {
   try {
     if (message.type === 'location') return saveLocation(state, user, message, now);
     if (message.type !== 'text') return help(now);
     const [command, ...fields] = message.text.normalize('NFKC').trim().split(/\s+/);
+    if (command.toLowerCase() === '/help' && fields.length === 0) return help(now);
     const [date, time, party, name, ...contact] = fields;
     if (command === '查詢' && fields.length >= 1 && fields.length <= 2) {
       const lines = (time ? [time] : TIMES).map(start => {

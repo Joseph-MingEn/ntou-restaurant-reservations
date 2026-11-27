@@ -57,3 +57,20 @@ test('LINE 大組訂位收到全部桌號，十三人以上引導聯絡店家', 
   assert.match(send('訂位 2027-01-12 12:30 13 林小安 guest@example.test').text, /聯繫店家/);
   assert.equal(state.bookings.length, 1);
 });
+
+test('/help 列出所有指令及可用範例，不建立或修改訂位', () => {
+  const { state, send } = setup();
+  const message = send('/help');
+  assert.equal(message.type, 'text');
+  for (const command of [
+    '/help',
+    '查詢 2027-01-12',
+    '查詢 2027-01-12 17:00',
+    '訂位 2027-01-12 17:00 5 王小明 guest@example.test',
+    '我的訂位',
+    '改期 訂位編號 2027-01-12 17:30 4',
+    '取消 訂位編號',
+    '定位 訂位編號',
+  ]) assert.ok(message.text.includes(command), '遺漏指令範例 ' + command);
+  assert.deepEqual(state, { bookings: [], locationRequests: {} });
+});
