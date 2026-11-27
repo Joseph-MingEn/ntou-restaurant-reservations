@@ -1,7 +1,7 @@
 import {
-  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, getAvailability, getSeatAssignments, getService, isActive, setArrival, today,
-} from './reservations.js?v=15';
-import { handleLineMessage } from './line.js?v=15';
+  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, estimateDailyMealCost, getAvailability, getSeatAssignments, getService, isActive, setArrival, today,
+} from './reservations.js?v=16';
+import { handleLineMessage } from './line.js?v=16';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -15,6 +15,12 @@ const guestDate = reserveForm.elements.namedItem('date');
 const guestTime = reserveForm.elements.namedItem('time');
 const guestParty = reserveForm.elements.namedItem('party');
 const adminFeedback = byId('admin-status');
+const mealRate = byId('meal-rate');
+const rateKey = storeKey + '-meal-rate';
+const currency = new Intl.NumberFormat('zh-TW', {
+  style: 'currency', currency: 'TWD', minimumFractionDigits: 0, maximumFractionDigits: 2,
+});
+let dailyMeals;
 const messages = byId('messages');
 const mealButtons = [...document.querySelectorAll('[data-meal]')];
 let mealKey = 'lunch';
@@ -302,20 +308,56 @@ async function api(path, options = {}) {
   return result;
 }
 
+function drawDailyMealCost() {
+  const total = byId('meal-budget-total');
+  if (!dailyMeals) {
+    byId('meal-budget-count').textContent = '請指定營業日期';
+    total.textContent = '';
+    return;
+  }
+  const { lunch, dinner } = dailyMeals;
+  const { guests, amount } = estimateDailyMealCost(lunch, dinner, mealRate.valueAsNumber);
+  byId('meal-budget-count').textContent = '午餐 ' + lunch + ' 人 · 晚餐 ' + dinner + ' 人 · 全天 ' + guests + ' 人';
+  total.textContent = amount === null ? '填入每人餐費即可估算' : currency.format(amount);
+}
+
+try {
+  mealRate.value = localStorage.getItem(rateKey) ?? '';
+} catch {
+  // The estimate remains usable when browser storage is unavailable.
+}
+mealRate.addEventListener('input', () => {
+  drawDailyMealCost();
+  try {
+    localStorage.setItem(rateKey, mealRate.value);
+  } catch {
+    // Keep the current amount in the input for this visit.
+  }
+});
+
 async function refreshAdmin() {
   if (!demo && !adminKey) return false;
   const epoch = ++renderEpoch;
   const date = dateInput.value;
   const time = timeSelect.value;
   if (!date || !time) {
+    dailyMeals = undefined;
+    drawDailyMealCost();
     byId('admin-data').hidden = !time;
     announce(adminFeedback, '請指定營業日期。');
     return false;
   }
   try {
-    const service = demo ? getService(readDemo().bookings, date, time) :
-      await api('/api/admin/service?' + new URLSearchParams({ date, time }));
+    const selectedMeal = MEALS.lunch.times.includes(time) ? 'lunch' : 'dinner';
+    const otherMeal = selectedMeal === 'lunch' ? 'dinner' : 'lunch';
+    const otherTime = MEALS[otherMeal].times[0];
+    const records = demo ? readDemo().bookings : undefined;
+    const loadService = start => demo ? getService(records, date, start) :
+      api('/api/admin/service?' + new URLSearchParams({ date, time: start }));
+    const [service, otherService] = await Promise.all([loadService(time), loadService(otherTime)]);
     if (epoch !== renderEpoch) return false;
+    dailyMeals = { [selectedMeal]: service.guests, [otherMeal]: otherService.guests };
+    drawDailyMealCost();
     const snapshot = JSON.stringify([date, time, Math.floor(Date.now() / 60_000), service]);
     if (lastService !== snapshot) {
       drawService(service);
@@ -324,7 +366,11 @@ async function refreshAdmin() {
     byId('admin-data').hidden = false;
     return true;
   } catch (error) {
-    if (epoch === renderEpoch) announce(adminFeedback, error.message);
+    if (epoch === renderEpoch) {
+      dailyMeals = undefined;
+      drawDailyMealCost();
+      announce(adminFeedback, error.message);
+    }
     return false;
   }
 }

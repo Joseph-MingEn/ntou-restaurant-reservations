@@ -164,6 +164,15 @@ export function getService(records, date, time, now = new Date()) {
   };
 }
 
+export function estimateDailyMealCost(lunchGuests, dinnerGuests, rate) {
+  const guests = lunchGuests + dinnerGuests;
+  const cents = Math.round(rate * 100);
+  const totalCents = guests * cents;
+  const amount = Number.isFinite(rate) && rate >= 0 && Number.isSafeInteger(cents) &&
+    Number.isSafeInteger(totalCents) ? totalCents / 100 : null;
+  return { guests, amount };
+}
+
 export function getSeatAssignments(bookings, date, time) {
   const selected = diningTime(date, time);
   const assignments = new Map();

@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#12362a">
   <meta name="description" content="用 LINE 查詢與訂位，從業主看板掌握備餐人數和桌況。">
   <title>餐廳預約系統</title>
-  <link rel="stylesheet" href="./style.css?v=15">
-  <script type="module" src="./app.js?v=15"></script>
+  <link rel="stylesheet" href="./style.css?v=16">
+  <script type="module" src="./app.js?v=16"></script>
 </head>
 <body>
   <header class="topbar">
@@ -45,6 +45,16 @@
           <button data-meal="dinner" type="button" aria-pressed="false">晚餐 <span>17:00–20:00</span></button>
         </div>
         <div class="metrics" id="metrics" aria-label="餐期統計"></div>
+        <section class="panel meal-budget" aria-labelledby="meal-budget-title">
+          <div>
+            <h2 id="meal-budget-title">當日預計餐費</h2>
+            <p class="meal-budget-note" id="meal-budget-count"></p>
+          </div>
+          <label>每人餐費（新台幣）
+            <input id="meal-rate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="填入金額">
+          </label>
+          <p id="meal-budget-total" class="meal-budget-total" role="status"></p>
+        </section>
         <div class="detail-grid">
           <section class="panel floor" aria-labelledby="desk-heading">
             <div class="panel-top">
