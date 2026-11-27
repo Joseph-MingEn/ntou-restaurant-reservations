@@ -1,7 +1,7 @@
 import {
-  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, getService, isActive, setArrival, today,
-} from './reservations.js?v=3';
-import { handleLineMessage } from './line.js?v=7';
+  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, getAvailability, getService, isActive, setArrival, today,
+} from './reservations.js?v=8';
+import { handleLineMessage } from './line.js?v=8';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -390,7 +390,7 @@ function drawChatChoices(response) {
 async function sendChat(message, shown = message.text) {
   if (shown) addBubble(shown, true);
   const response = await changeDemo(state => handleLineMessage(state, message, {
-    user: guest, createId: () => 'R-' + crypto.randomUUID().slice(0, 8).toUpperCase(),
+    user: guest, createId: () => createBookingNumber(state.bookings),
   }));
   addBubble(response.text);
   drawChatChoices(response);

@@ -1,5 +1,5 @@
-import { readBookingRequest, readParty } from './line-language.js?v=7';
-import { bookingTables, cancelBooking, createBooking, DEADLINE_MINUTES, diningTime, endTime, getAvailability, isActive, MAX_PARTY, MEALS, moveBooking, TIMES, today } from './reservations.js?v=3';
+import { readBookingRequest, readParty } from './line-language.js?v=8';
+import { bookingTables, cancelBooking, createBooking, DEADLINE_MINUTES, diningTime, endTime, getAvailability, isActive, MAX_PARTY, MEALS, moveBooking, TIMES, today } from './reservations.js?v=8';
 
 const reply = text => ({ type: 'text', text });
 const BOOKING_DATE_ACTION = 'booking-date';
@@ -165,6 +165,7 @@ function help(now) {
 
 查看自己的有效訂位
 我的訂位
+新訂位使用 6 位數字編號，例如 482731。
 
 改日期、時間或人數
 改期 訂位編號 ${date} 17:30 4

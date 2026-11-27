@@ -30,6 +30,8 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory site
 
 本次實測使用本機業主服務與臨時 HTTPS 通道。正式帳號能否回覆取決於服務、通道及頻道憑證是否有效。GitHub Pages 亦提供瀏覽器內的示例，與正式 LINE 訂位資料各自獨立。
 
+新訂位會收到 6 位數字編號，例如 `482731`，可用於改期、取消與定位。
+
 ## LINE 與業主服務
 
 1. 將 `.env.example` 複製到 `.env`，設定獨立、強隨機的 `ADMIN_KEY`，以及 LINE Official Account Messaging API 的 `LINE_CHANNEL_SECRET` 和 `LINE_CHANNEL_ACCESS_TOKEN`。

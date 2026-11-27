@@ -1,10 +1,10 @@
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { handleLineMessage } from './site/line.js?v=7';
-import { cancelBooking, getService, setArrival } from './site/reservations.js?v=3';
+import { handleLineMessage } from './site/line.js?v=8';
+import { cancelBooking, createBookingNumber, getService, setArrival } from './site/reservations.js?v=8';
 
 const staticFiles = new Map([
   ['/admin', ['index.html', 'text/html; charset=utf-8']],
@@ -119,7 +119,7 @@ export function createServer({
         if (value.until <= +now) delete next.bookingDrafts[key];
       }
       const message = handleLineMessage(next, inbound, {
-        user, now, createId: () => 'R-' + randomUUID().split('-').join('').toUpperCase(),
+        user, now, createId: () => createBookingNumber(next.bookings),
       });
       Object.defineProperty(next.events, id, {
         value: { at: +now, message }, writable: true, enumerable: true, configurable: true,

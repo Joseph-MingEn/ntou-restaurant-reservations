@@ -92,3 +92,17 @@ test('經簽章驗證的日期選擇事件會透過 LINE 回傳可選時段', as
   assert.equal((await send([dateEvent])).status, 200);
   assert.equal(replyCalls[1]?.message.quickReply.items.length, 6);
 });
+
+test('新訂位使用互不重複的六位數字，並可持該號碼取消', async t => {
+  const { send, service, replyCalls } = await setup(t);
+  await send([event('short-a', '訂位 2027-01-12 11:30 2 林小安 guest@example.test'),
+    event('short-b', '訂位 2027-01-12 11:30 2 王小明 guest2@example.test')]);
+  const { bookings } = await (await service()).json();
+  assert.equal(bookings.length, 2);
+  for (const booking of bookings) assert.match(booking.id, /^\d{6}$/);
+  assert.notEqual(bookings[0].id, bookings[1].id);
+  assert.match(replyCalls[0].message.text, new RegExp('訂位編號 ' + bookings[0].id));
+  await send([event('cancel-short', '取消 ' + bookings[0].id)]);
+  assert.match(replyCalls[2].message.text, /已取消訂位/);
+  assert.equal((await (await service()).json()).parties, 1);
+});
