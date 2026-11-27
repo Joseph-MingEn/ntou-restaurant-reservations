@@ -1,6 +1,6 @@
 # 餐廳預約系統
 
-[業主看板](https://joseph-mingen.github.io/ntou-restaurant-reservations/#admin) · [LINE 訂位展示](https://joseph-mingen.github.io/ntou-restaurant-reservations/#line)
+[業主看板](https://joseph-mingen.github.io/ntou-restaurant-reservations/#admin) · [LINE 訂位展示](https://joseph-mingen.github.io/ntou-restaurant-reservations/#line) · [LINE 官方帳號 @291hdbqn](https://line.me/R/ti/p/%40291hdbqn)
 
 單店配有 6 張兩人桌、6 張四人桌。午餐營業 11:30–14:30，晚餐營業 17:00–20:00。每組最多用餐 2 小時，入座前 30 分鐘停止接受訂位。時段均為台灣時間。
 
@@ -21,6 +21,12 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory site
 ```
 
 開啟 http://127.0.0.1:8765/ 查看展示。HTTP 測試需系統允許在本機迴路位址啟動暫時伺服器。
+
+## 用 LINE 實測
+
+以手機或電腦的 LINE 與官方帳號 `@291hdbqn` 私聊。先輸入「查詢」看指令，再用指定營業日期測試空位和訂位。用手機傳「定位 訂位編號」，再點 LINE 的「分享定位」選擇位置。測試期間請使用虛構的聯絡資料。
+
+本次實測使用本機業主服務與臨時 HTTPS 通道。正式帳號能否回覆取決於服務、通道及頻道憑證是否有效。GitHub Pages 亦提供瀏覽器內的示例，與正式 LINE 訂位資料各自獨立。
 
 ## LINE 與業主服務
 
