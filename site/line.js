@@ -162,7 +162,7 @@ function queryAvailability(state, date, time, user, now, { meal, party } = {}) {
   return reply(`${date}\n\n${lines.join('\n\n')}`);
 }
 
-function finishBooking(state, date, time, details, { user, now, createId }) {
+function finishBooking(state, date, time, details, { user, now, createId, emailReminders }) {
   const [party, name, ...contact] = details;
   if (!TIMES.includes(time)) return explainUnavailableTime(state, date, time, user, now);
   if (!getAvailability(state.bookings, date, time, now).open) {
@@ -178,9 +178,11 @@ function finishBooking(state, date, time, details, { user, now, createId }) {
     date, time, party: partySize, name: customer, contact: phoneOrEmail,
   }, { now, id, owner: user });
   if (state.bookingDrafts) delete state.bookingDrafts[user];
-  return reply(`訂位成功！\n\n${bookingDetails(booking)}`);
+  const reminder = emailReminders?.(booking.contact)
+    ? '\n\n用餐提醒會透過 Email 在入座前 2 小時和 30 分鐘寄出。' : '';
+  return reply(`訂位成功！\n\n${bookingDetails(booking)}${reminder}`);
 }
-function help(now) {
+function help(now, emailReminders) {
   const date = today(new Date(+now + 86_400_000));
   return reply(`餐廳訂位指南 /help
 
@@ -217,23 +219,25 @@ function help(now) {
 店家可在業主後台查看，方便協助指路。
 1. 傳送「定位 訂位編號」。
 2. 在 10 分鐘內，用手機 LINE 點「分享定位」，選擇地圖位置後送出。
+3. 看到「已收到你的定位」就代表店家可以查看。
 
 【訂位須知】
 每組 1–${MAX_PARTY} 人
 每組最多用餐 2 小時
-入座前 ${DEADLINE_MINUTES} 分鐘截止`);
+入座前 ${DEADLINE_MINUTES} 分鐘截止${emailReminders
+    ? '\n以 Email 訂位可在入座前 2 小時和 30 分鐘收到用餐提醒。' : ''}`);
 }
 
-export function handleLineMessage(state, message, { user, now = new Date(), createId }) {
+export function handleLineMessage(state, message, { user, now = new Date(), createId, emailReminders }) {
   try {
     if (message.type === 'location') return saveLocation(state, user, message, now);
     if (message.type === 'postback' && message.data === BOOKING_DATE_ACTION) {
       return selectTime(state, message.params?.date, user, now);
     }
-    if (message.type !== 'text') return help(now);
+    if (message.type !== 'text') return help(now, emailReminders);
     const text = message.text.normalize('NFKC').trim();
     const [command, ...fields] = text.split(/\s+/);
-    if (command.toLowerCase() === '/help' && fields.length === 0) return help(now);
+    if (command.toLowerCase() === '/help' && fields.length === 0) return help(now, emailReminders);
     const [date, time] = fields;
     if (command === '查詢' && DATE.test(date ?? '') && (fields.length === 1 || fields.length === 2 && CLOCK.test(time ?? ''))) {
       return queryAvailability(state, date, time, user, now);
@@ -246,7 +250,7 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
       if (fields.length === 1) return selectTime(state, date, user, now);
       if (fields.length === 2) return prepareBooking(state, date, time, user, now);
       if (fields.length >= 5) {
-        return finishBooking(state, date, time, fields.slice(2), { user, now, createId });
+        return finishBooking(state, date, time, fields.slice(2), { user, now, createId, emailReminders });
       }
       if (fields.length === 3 && Number.isInteger(readParty(fields[2]))) {
         return prepareBooking(state, date, time, user, now, { party: readParty(fields[2]) });
@@ -257,7 +261,7 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
       const draft = state.bookingDrafts?.[user];
       if (!draft || draft.until <= +now) return reply('請先傳送「訂位」，重新選擇日期與入座時間。');
       if (fields.length < 3) return reply('請傳送「確認 人數 姓名 電話或 Email」。');
-      return finishBooking(state, draft.date, draft.time, fields, { user, now, createId });
+      return finishBooking(state, draft.date, draft.time, fields, { user, now, createId, emailReminders });
     }
     const request = readBookingRequest(text, now);
     if (request?.kind === 'mine') {
@@ -280,7 +284,7 @@ export function handleLineMessage(state, message, { user, now = new Date(), crea
       return reply(`已取消訂位。\n訂位編號 ${booking.id}`);
     }
     if (command === '定位' && fields.length === 1) return requestLocation(state, user, date.toUpperCase(), now);
-    return request ? answerRequest(state, request, user, now) : help(now);
+    return request ? answerRequest(state, request, user, now) : help(now, emailReminders);
   } catch (error) {
     return reply(error.message);
   }
@@ -334,5 +338,5 @@ function saveLocation(state, user, message, now) {
   }
   booking.location = { latitude, longitude, sharedAt: now.toISOString() };
   delete state.locationRequests[user];
-  return reply(`已收到定位。\n訂位編號 ${booking.id}\n店家可以在後台查看。`);
+  return reply(`已收到你的定位。\n\n訂位編號 ${booking.id}\n位置已附到這筆訂位，店家可在業主後台查看。`);
 }

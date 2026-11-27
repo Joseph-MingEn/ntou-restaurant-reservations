@@ -59,3 +59,13 @@ GitHub Pages 的 `gh-pages` 分支由 `site/` 的內容發佈，使用根目錄�
 ## 開發記錄
 
 [規劃範圍](docs/01_規劃範圍.md) · [規格](docs/02_規格.md) · [計畫](docs/03_計畫.md) · [計畫審查](docs/04_計畫審查.md) · [TDD](docs/05_TDD.md) · [完整功能盤點](docs/06_完整功能盤點.md)
+
+## Gmail 用餐提醒
+
+啟用後，正式 LINE 訂位只要留下 Email，系統會在台灣時間入座前 2 小時和 30 分鐘各寄一次。離入座不足 2 小時才訂位時，第一封由下一次檢查補寄。服務每分鐘檢查一次。取消與已報到的訂位會停止寄信。改期依新時段重新判斷。GitHub Pages 展示模式不寄信。
+
+1. 在店家的 Google Cloud 專案啟用 Gmail API，建立 OAuth 用戶端，並由寄件帳號同意 `https://www.googleapis.com/auth/gmail.send` 的寄信權限。以離線存取流程取得 refresh token。
+2. 在正式服務的私有 `.env` 填入 `GMAIL_SENDER`、`GMAIL_CLIENT_ID`、`GMAIL_CLIENT_SECRET` 和 `GMAIL_REFRESH_TOKEN`，重啟 Node 服務。寄件地址須為授權的 Gmail 帳號或它設定的寄件別名。
+3. 使用店家可收信的測試地址建立 LINE 訂位，確認 Gmail 投遞後再對客人開放。排程依賴正式服務持續運行。服務在最後 30 分鐘內恢復時，只會補寄 30 分鐘提醒。
+
+[Google OAuth 離線授權](https://developers.google.com/identity/protocols/oauth2/web-server) · [Gmail API 寄信](https://developers.google.com/workspace/gmail/api/guides/sending)

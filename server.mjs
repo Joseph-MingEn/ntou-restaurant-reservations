@@ -3,8 +3,11 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { handleLineMessage } from './site/line.js?v=19';
+import { handleLineMessage } from './site/line.js?v=20';
 import { cancelBooking, createBookingNumber, getService, setArrival } from './site/reservations.js?v=8';
+
+import { createGmailSender, reminderRecipient } from './gmail.mjs';
+import { deliverReminders } from './reminders.mjs';
 
 const staticFiles = new Map([
   ['/admin', ['index.html', 'text/html; charset=utf-8']],
@@ -86,6 +89,7 @@ export function createServer({
   dataFile = resolve('data/reservations.json'), adminKey = process.env.ADMIN_KEY,
   lineSecret = process.env.LINE_CHANNEL_SECRET, accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN,
   clock = () => new Date(),
+  sendReminder, reminderIntervalMs = 60_000,
   replyToLine = accessToken && ((token, message) => replyToMessagingApi(token, message, accessToken)),
 } = {}) {
   let state = loadState(dataFile);
@@ -120,6 +124,7 @@ export function createServer({
       }
       const message = handleLineMessage(next, inbound, {
         user, now, createId: () => createBookingNumber(next.bookings),
+        emailReminders: sendReminder ? reminderRecipient : undefined,
       });
       Object.defineProperty(next.events, id, {
         value: { at: +now, message }, writable: true, enumerable: true, configurable: true,
@@ -141,7 +146,7 @@ export function createServer({
     }
   }
 
-  return createHttpServer(async (request, response) => {
+  const server = createHttpServer(async (request, response) => {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('Referrer-Policy', 'no-referrer');
@@ -207,10 +212,46 @@ export function createServer({
       return json(response, 500, { error: '伺服器暫時無法處理請求。' });
     }
   });
+
+  if (sendReminder) {
+    let timer;
+    let running = false;
+    const tick = async () => {
+      if (running) return;
+      running = true;
+      try {
+        await deliverReminders({ getState: () => state, commit, clock, sendReminder });
+      } catch {
+        console.error('Gmail 提醒排程暫時無法處理。');
+      } finally {
+        running = false;
+      }
+    };
+    server.on('listening', () => {
+      timer = setInterval(tick, reminderIntervalMs).unref();
+      void tick();
+    });
+    server.on('close', () => clearInterval(timer));
+  }
+  return server;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const port = Number(process.env.PORT ?? 8080);
   const host = process.env.HOST ?? '127.0.0.1';
-  createServer().listen(port, host, () => console.log(`http://${host}:${port}/admin`));
+  const gmail = {
+    sender: process.env.GMAIL_SENDER,
+    clientId: process.env.GMAIL_CLIENT_ID,
+    clientSecret: process.env.GMAIL_CLIENT_SECRET,
+    refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+  };
+  let sendReminder;
+  if (Object.values(gmail).some(Boolean)) {
+    try {
+      sendReminder = createGmailSender(gmail);
+    } catch (error) {
+      console.error(error.message);
+    }
+  }
+  createServer({ sendReminder }).listen(port, host, () => console.log(`http://${host}:${port}/admin`));
 }

@@ -30,7 +30,11 @@ test('定位須選取本人訂位，且只能在十分鐘內提交一次', () =>
   assert.equal(send('定位 R-001').quickReply.items[0].action.type, 'location');
   assert.match(send(position, 'line-a', new Date(+now + 600_000)).text, /請先/);
   send('定位 R-001');
-  assert.match(send(position).text, /收到/);
+  const confirmation = send(position).text;
+  assert.match(confirmation, /^已收到你的定位。/);
+  assert.match(confirmation, /訂位編號 R-001/);
+  assert.match(confirmation, /已附到這筆訂位/);
+  assert.match(confirmation, /業主後台/);
   assert.match(send(position).text, /請先/);
   assert.equal(state.bookings[0].location.longitude, 121.77);
   assert.match(send('取消 R-001').text, /已取消/);
