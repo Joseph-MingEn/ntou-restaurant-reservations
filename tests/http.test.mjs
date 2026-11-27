@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createServer } from '../server.mjs';
+import { createServer, createWebhookListener } from '../server.mjs';
 
 const key = 'test-admin-key';
 const secret = 'test-line-secret';
@@ -161,4 +161,22 @@ test('正式訂位在入座前兩小時和半小時以 Gmail 提醒，重啟不�
   await waitForCount(4);
   assert.equal(reminders[3].to, 'moved@example.test');
   assert.match(reminders[3].subject, /30 分鐘/);
+});
+
+test('獨立 LINE 入口拒絕業主頁、管理 API 和非 webhook 請求', async t => {
+  const { server } = await setup(t);
+  const listener = createWebhookListener(server);
+  t.after(() => new Promise(resolve => listener.close(resolve)));
+  listener.listen(0, '127.0.0.1');
+  await once(listener, 'listening');
+  const base = 'http://127.0.0.1:' + listener.address().port;
+  for (const route of ['/admin', '/api/admin/service', '/health', '/line/webhook']) {
+    assert.equal((await fetch(base + route)).status, 404);
+  }
+  const headers = { Authorization: 'Bearer ' + key };
+  assert.equal((await fetch(base + '/api/admin/service', { method: 'POST', headers })).status, 404);
+  const body = JSON.stringify({ events: [] });
+  assert.equal((await fetch(base + '/line/webhook', { method: 'POST', body })).status, 401);
+  headers['x-line-signature'] = createHmac('sha256', secret).update(body).digest('base64');
+  assert.equal((await fetch(base + '/line/webhook', { method: 'POST', body, headers })).status, 200);
 });

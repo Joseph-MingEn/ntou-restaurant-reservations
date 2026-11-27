@@ -70,3 +70,7 @@ GitHub Pages 的 `gh-pages` 分支由 `site/` 的內容發佈，使用根目錄�
 3. 使用店家可收信的測試地址建立 LINE 訂位，確認 Gmail 投遞後再對客人開放。排程依賴正式服務持續運行。服務在最後 30 分鐘內恢復時，只會補寄 30 分鐘提醒。
 
 [Google OAuth 離線授權](https://developers.google.com/identity/protocols/oauth2/web-server) · [Gmail API 寄信](https://developers.google.com/workspace/gmail/api/guides/sending)
+
+### 獨立 LINE Webhook 入口
+
+設定 `LINE_WEBHOOK_PORT=8795` 後，將公開 HTTPS 反向代理只接到 `127.0.0.1:8795`。此入口只接受 `POST /line/webhook`，仍會驗證 LINE 簽章。原有業主連線使用 `PORT` 指定的私有入口。將固定公開網址加上 `/line/webhook` 後填入 LINE Developers，驗證成功再啟用。

@@ -236,6 +236,17 @@ export function createServer({
   return server;
 }
 
+// Share the private server's state without exposing its admin routes.
+export function createWebhookListener(privateServer) {
+  return createHttpServer((request, response) => {
+    if (request.method !== 'POST' || request.url !== '/line/webhook') {
+      response.writeHead(404, { 'Cache-Control': 'no-store' }).end();
+      return;
+    }
+    privateServer.emit('request', request, response);
+  });
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const port = Number(process.env.PORT ?? 8080);
   const host = process.env.HOST ?? '127.0.0.1';
@@ -253,5 +264,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       console.error(error.message);
     }
   }
-  createServer({ sendReminder }).listen(port, host, () => console.log(`http://${host}:${port}/admin`));
+  const privateServer = createServer({ sendReminder });
+  if (process.env.LINE_WEBHOOK_PORT) {
+    createWebhookListener(privateServer).listen(Number(process.env.LINE_WEBHOOK_PORT), '127.0.0.1');
+  }
+  privateServer.listen(port, host, () => console.log(`http://${host}:${port}/admin`));
 }
