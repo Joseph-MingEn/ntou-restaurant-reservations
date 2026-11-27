@@ -1,7 +1,7 @@
 import {
-  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, getAvailability, getDiningIds, getService, isActive, setArrival, today,
-} from './reservations.js?v=14';
-import { handleLineMessage } from './line.js?v=14';
+  MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, createBookingNumber, diningTime, endTime, getAvailability, getSeatAssignments, getService, isActive, setArrival, today,
+} from './reservations.js?v=15';
+import { handleLineMessage } from './line.js?v=15';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -92,6 +92,7 @@ function metric(label, value, unit, hint) {
 function drawService(service) {
   currentService = service;
   const { availability, arrivals, guests, parties } = service;
+  const tableStates = getSeatAssignments(service.bookings, dateInput.value, timeSelect.value);
   const slotStatus = !availability.open ? '已截止' : availability.seats ? '開放訂位' : '額滿';
   byId('metrics').replaceChildren(
     metric('備餐人數', guests, '人', '整個餐期有效訂位'),
@@ -107,8 +108,9 @@ function drawService(service) {
     heading.append(element('span', '剩 ' + (capacity === 2 ? availability.two : availability.four) + ' / 6 張'));
     const list = element('ul', undefined, 'table-grid');
     for (const table of availability.tables.filter(item => item.capacity === capacity)) {
-      const chip = element('li', table.id, 'table-chip' + (table.occupied ? ' occupied' : ''));
-      chip.append(element('span', table.occupied ? ' 已保留' : ' 空桌', 'sr-only'));
+      const status = tableStates.get(table.id)?.status ?? 'free';
+      const chip = element('li', table.id, 'table-chip ' + status);
+      chip.append(element('span', TABLE_LABELS[status], 'table-chip-status'));
       list.append(chip);
     }
     group.append(heading, list);
@@ -134,35 +136,32 @@ function drawService(service) {
   drawSlotGuests(service);
 }
 
+const TABLE_LABELS = { dining: '用餐中', reserved: '預約中', free: '空桌' };
+
 function drawSlotGuests(service) {
   const time = timeSelect.value;
-  const bookings = service.bookings.filter(booking => booking.time === time);
-  let shown = bookings.filter(isActive);
+  const window = time + '–' + endTime(time);
+  const summary = byId('guest-summary');
   if (animationMode) {
-    const dining = new Set(getDiningIds(service.bookings, dateInput.value, time));
-    shown = service.bookings.filter(booking => dining.has(booking.id));
-    drawGuestMap(service.availability.tables, shown);
+    const assignments = getSeatAssignments(service.bookings, dateInput.value, time);
+    const totals = { dining: 0, reserved: 0 };
+    for (const { status, guests } of assignments.values()) totals[status] += guests;
+    summary.textContent = window + ' · 用餐中 ' + totals.dining + ' 人 · 預約中 ' + totals.reserved + ' 人';
+    drawGuestMap(service.availability.tables, assignments);
   } else {
+    const bookings = service.bookings.filter(booking => booking.time === time);
+    const active = bookings.filter(isActive);
+    const guests = active.reduce((sum, booking) => sum + booking.party, 0);
+    summary.textContent = window + ' · ' + active.length + ' 組 · ' + guests + ' 人';
     const rows = bookings.map(bookingRow);
     byId('booking-list').replaceChildren(...(rows.length ? rows : [element('li', '這個入座時間尚無訂位。', 'empty')]));
   }
-  const guests = shown.reduce((sum, booking) => sum + booking.party, 0);
-  byId('guest-summary').textContent =
-    time + '–' + endTime(time) + ' · ' + shown.length + ' 組 · ' + guests + ' 人';
 }
 
-function drawGuestMap(tables, bookings) {
-  const tableById = new Map(tables.map(table => [table.id, table]));
-  const assigned = new Map();
-  for (const [index, booking] of bookings.entries()) {
-    let remaining = booking.party;
-    for (const tableId of bookingTables(booking)) {
-      const guests = Math.min(remaining, tableById.get(tableId).capacity);
-      assigned.set(tableId, {
-        guests, index, combined: bookingTables(booking).length > 1,
-      });
-      remaining -= guests;
-    }
+function drawGuestMap(tables, assignments) {
+  for (const status of Object.keys(TABLE_LABELS)) {
+    const count = tables.filter(table => (assignments.get(table.id)?.status ?? 'free') === status).length;
+    byId('map-count-' + status).textContent = TABLE_LABELS[status] + ' ' + count + ' 桌';
   }
   const map = byId('guest-map');
   map.replaceChildren(...[2, 4].map(capacity => {
@@ -170,22 +169,21 @@ function drawGuestMap(tables, bookings) {
     section.append(element('h3', capacity === 2 ? '兩人桌' : '四人桌'));
     const grid = element('ul', undefined, 'guest-map-grid');
     for (const table of tables.filter(item => item.capacity === capacity)) {
-      const assignment = assigned.get(table.id);
-      const status = assignment ? assignment.guests + ' 人' : '空桌';
-      const tile = element('li', undefined, 'guest-table');
-      if (assignment) tile.classList.add('dining');
+      const assignment = assignments.get(table.id);
+      const status = assignment?.status ?? 'free';
+      const tile = element('li', undefined, 'guest-table ' + status);
       const title = element('strong', table.id);
-      const note = element('span', status);
+      const note = element('strong', TABLE_LABELS[status], 'table-map-status');
       const people = element('div', undefined, 'seats');
       people.setAttribute('aria-hidden', 'true');
       for (let seat = 0; seat < capacity; seat++) {
-        const seated = seat < (assignment?.guests ?? 0);
+        const seated = status === 'dining' && seat < assignment.guests;
         const dot = element('i', undefined, seated ? 'occupied-seat' : '');
-        if (seated) dot.style.setProperty('--seat-delay', (seat * 75 + assignment.index * 60) + 'ms');
+        if (seated) dot.style.setProperty('--seat-delay', (seat * 75) + 'ms');
         people.append(dot);
       }
       tile.append(title, people, note);
-      if (assignment) tile.append(element('strong', '用餐中', 'dining-label'));
+      if (assignment) tile.append(element('span', assignment.guests + ' 人'));
       if (assignment?.combined) tile.append(element('small', '併桌'));
       grid.append(tile);
     }

@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#12362a">
   <meta name="description" content="用 LINE 查詢與訂位，從業主看板掌握備餐人數和桌況。">
   <title>餐廳預約系統</title>
-  <link rel="stylesheet" href="./style.css?v=14">
-  <script type="module" src="./app.js?v=14"></script>
+  <link rel="stylesheet" href="./style.css?v=15">
+  <script type="module" src="./app.js?v=15"></script>
 </head>
 <body>
   <header class="topbar">
@@ -56,7 +56,7 @@
             </div>
             <p class="slot-info" id="slot-info"></p>
             <div id="tables"></div>
-            <div class="legend"><span><i></i> 空桌</span><span><i></i> 已保留</span></div>
+            <div class="legend"><span><i class="legend-reserved"></i> 預約中</span><span><i class="legend-dining"></i> 用餐中</span><span><i class="legend-free"></i> 空桌</span></div>
           </section>
           <section class="panel arrivals" aria-labelledby="arrivals-heading">
             <div class="panel-top"><div><h2 id="arrivals-heading">分時到店</h2><p>各入座時間的已訂人數。</p></div></div>
@@ -74,11 +74,11 @@
           <div id="guest-list-view"><ul id="booking-list"></ul></div>
           <div id="guest-map-view" hidden>
             <div class="animation-controls">
-              <p>預覽所選用餐區間，每個實心圓代表一位已訂客人。</p>
+              <p>依所選入座時間預覽桌況，每個實心圓代表一位用餐客人。</p>
               <button id="play-slots" type="button" class="secondary">播放時段</button>
             </div>
             <div id="guest-map" class="guest-map" aria-label="各桌客人分布"></div>
-            <div class="legend"><span><i></i> 空桌</span><span><i class="legend-dining"></i> 用餐中</span></div>
+            <div class="legend"><span><i class="legend-reserved"></i><span id="map-count-reserved">預約中</span></span><span><i class="legend-dining"></i><span id="map-count-dining">用餐中</span></span><span><i></i><span id="map-count-free">空桌</span></span></div>
           </div>
         </section>
       </div>

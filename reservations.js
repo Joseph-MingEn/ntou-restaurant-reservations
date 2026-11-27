@@ -164,13 +164,24 @@ export function getService(records, date, time, now = new Date()) {
   };
 }
 
-export function getDiningIds(bookings, date, time) {
+export function getSeatAssignments(bookings, date, time) {
   const selected = diningTime(date, time);
-  return bookings.filter(booking => {
-    if (booking.date !== date || !isActive(booking)) return false;
+  const assignments = new Map();
+  for (const booking of bookings) {
+    if (booking.date !== date || !isActive(booking)) continue;
     const start = diningTime(booking.date, booking.time);
-    return overlapsDining(selected, start);
-  }).map(booking => booking.id);
+    if (!overlapsDining(selected, start)) continue;
+    const status = start <= selected ? 'dining' : 'reserved';
+    const ids = bookingTables(booking);
+    let remaining = booking.party;
+    for (const id of ids) {
+      const capacity = TABLES.find(table => table.id === id).capacity;
+      const guests = Math.min(remaining, capacity);
+      assignments.set(id, { status, guests, combined: ids.length > 1 });
+      remaining -= guests;
+    }
+  }
+  return assignments;
 }
 
 export function setArrival(records, id, status, now = new Date()) {
