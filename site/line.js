@@ -182,45 +182,46 @@ function finishBooking(state, date, time, details, { user, now, createId }) {
 }
 function help(now) {
   const date = today(new Date(+now + 86_400_000));
-  return reply(`訂位指令 /help
+  return reply(`餐廳訂位指南 /help
 
-可以直接輸入口語，例如
-明天晚上五點半，五位，有位嗎？
-我想訂明晚六點，四位
+範例中的日期可換成你要用餐的日期。
+使用指令時，請用空格分隔資料。
 
-使用完整指令時，請用空格分隔資料。
-
-查詢空位
+【查空位】
 查詢 ${date}
 查詢 ${date} 17:00
+也可以問「明天晚上五點半，五位，有位嗎？」
 
-選日期和入座時間
+【建立訂位】
 訂位
 訂位 ${date}
-選好時間後，回覆「確認 人數 姓名 電話或 Email」。
+選好時段後，傳送下列格式。
+確認 人數 姓名 電話或 Email
 
-一次輸入完整訂位（日期 時間 人數 姓名 電話或 Email）
+【直接訂位】
+依序填寫日期、時間、人數、姓名及聯絡方式。
 訂位 ${date} 17:00 5 王小明 guest@example.test
 
-查看自己的有效訂位
+【查看訂位】
 我的訂位
-新訂位使用 6 位數字編號，例如 482731。
+回覆會列出目前有效的訂位及編號。
 
-改日期、時間或人數
+【改期或改人數】
 改期 訂位編號 ${date} 17:30 4
 
-取消訂位
+【取消訂位】
 取消 訂位編號
 
-選填定位（讓店家看到你主動分享的地圖位置）
-定位 訂位編號
+【分享定位（選填）】
+找不到餐廳時，可把選擇的地圖位置附到自己的訂位。
+店家可在業主後台查看，方便協助指路。
+1. 傳送「定位 訂位編號」。
+2. 在 10 分鐘內，用手機 LINE 點「分享定位」，選擇地圖位置後送出。
 
-訂位須知
+【訂位須知】
 每組 1–${MAX_PARTY} 人
-最多用餐 2 小時
-入座前 ${DEADLINE_MINUTES} 分鐘截止
-
-需要時可再傳 /help。`);
+每組最多用餐 2 小時
+入座前 ${DEADLINE_MINUTES} 分鐘截止`);
 }
 
 export function handleLineMessage(state, message, { user, now = new Date(), createId }) {
@@ -317,7 +318,7 @@ function requestLocation(state, user, id, now) {
   if (!booking) return reply('找不到你仍有效的訂位。');
   state.locationRequests[user] = { id, until: +now + 600_000 };
   return withActions(
-    `訂位編號 ${id}\n\n你可在 10 分鐘內分享一個位置給店家。\n分享定位是選填的。`,
+    `訂位編號 ${id}\n\n請在 10 分鐘內，用手機點「分享定位」，選擇地圖位置後送出。\n位置會附到這筆訂位，供店家在後台查看。\n分享定位是選填的。`,
     [{ type: 'location', label: '分享定位' }],
   );
 }

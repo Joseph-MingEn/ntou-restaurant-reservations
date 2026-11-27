@@ -181,3 +181,14 @@ test('建立、查詢本人訂位及改期的結果，各欄位分行', () => {
   assert.match(send('我的訂位').text, /桌號 A01\n\n訂位編號 R-001\n用餐日期 2027-01-13/);
   assert.match(send('改期 R-001 2027-01-12 17:30 2').text, /^改期成功！\n\n訂位編號 R-001\n用餐日期 2027-01-12\n用餐時段 17:30–19:30/);
 });
+
+test('/help 的定位小節清楚說明選填、用途與手機操作步驟', () => {
+  const { send } = setup();
+  const text = send('/help').text;
+  assert.match(text, /【查空位】\n查詢 2027-01-12\n查詢 2027-01-12 17:00\n也可以問/);
+  const location = text.split('【分享定位（選填）】\n')[1]?.split('\n\n')[0] ?? '';
+  assert.match(location, /找不到餐廳/);
+  assert.match(location, /業主後台/);
+  assert.match(location, /1\. 傳送「定位 訂位編號」/);
+  assert.match(location, /2\. 在 10 分鐘內，用手機 LINE 點「分享定位」/);
+});
