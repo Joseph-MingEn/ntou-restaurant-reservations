@@ -599,6 +599,24 @@ if (demo) {
   venueLink.textContent = VENUE_NAME + ' · ' + VENUE_ADDRESS;
   venueLink.href = VENUE_MAP_URL;
   venueLink.parentElement.hidden = false;
+  const resetDemo = byId('reset-demo');
+  resetDemo.hidden = false;
+  byId('confirm-reset-demo').addEventListener('click', async () => {
+    await changeDemo(state => {
+      state.bookings = [];
+      state.locationRequests = {};
+      state.bookingDrafts = {};
+    });
+    stopPlayback();
+    messages.replaceChildren();
+    drawChatChoices({});
+    byId('quick-location').hidden = true;
+    announce(byId('guest-status'), '');
+    resetDemo.open = false;
+    showAvailability();
+    await refreshAdmin();
+    announce(adminFeedback, '本瀏覽器的示例訂位已清空。');
+  });
   demoState = readDemo();
   await changeDemo(() => {});
   guestDate.min = today();

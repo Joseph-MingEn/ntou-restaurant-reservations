@@ -7,7 +7,7 @@
   <meta name="description" content="用 LINE 查詢與訂位，從業主看板掌握備餐人數和桌況。">
   <title>餐廳預約系統</title>
   <link rel="stylesheet" href="./style.css?v=21">
-  <script type="module" src="./app.js?v=21"></script>
+  <script type="module" src="./app.js?v=22"></script>
 </head>
 <body>
   <header class="topbar">
@@ -30,6 +30,10 @@
         <label class="date-field">營業日期 <input type="date" id="service-date"></label>
       </div>
       <p class="demo-note" id="demo-note">展示模式・本瀏覽器內的示例訂位會同步至兩個介面。</p>
+      <details id="reset-demo" hidden><summary>清除本瀏覽器示例訂位</summary>
+        <p>清除後會移除展示名單與定位。</p>
+        <button id="confirm-reset-demo" type="button">確認清除示例訂位</button>
+      </details>
       <form id="login" class="panel login" hidden>
         <h2>業主登入</h2>
         <label for="admin-key">管理金鑰</label>
