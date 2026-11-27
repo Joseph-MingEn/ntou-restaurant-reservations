@@ -1,7 +1,7 @@
 import {
   MAX_PARTY, MEALS, TIMES, bookingTables, cancelBooking, createBooking, diningTime, endTime, getAvailability, getService, isActive, setArrival, today,
 } from './reservations.js?v=3';
-import { handleLineMessage } from './line.js?v=5';
+import { handleLineMessage } from './line.js?v=6';
 
 const byId = id => document.getElementById(id);
 const demo = location.pathname !== '/admin';
@@ -352,12 +352,48 @@ function addBubble(text, customer = false) {
   messages.scrollTop = messages.scrollHeight;
 }
 
+function drawChatChoices(response) {
+  const choices = byId('chat-choices');
+  choices.replaceChildren();
+  for (const { action } of response.quickReply?.items ?? []) {
+    if (action.type === 'message') {
+      const button = element('button', action.label);
+      button.type = 'button';
+      button.addEventListener('click', () => {
+        void sendChat({ type: 'text', text: action.text }, action.label).catch(error => addBubble(error.message));
+      });
+      choices.append(button);
+    }
+    if (action.type === 'datetimepicker') {
+      const form = element('form', undefined, 'form-row');
+      const input = element('input');
+      input.type = 'date';
+      input.setAttribute('aria-label', action.label);
+      input.min = action.min;
+      input.value = action.initial;
+      input.required = true;
+      const submit = element('button', '確定日期');
+      submit.type = 'submit';
+      form.append(input, submit);
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        const date = input.value;
+        void sendChat({ type: 'postback', data: action.data, params: { date } }, '選擇 ' + date)
+          .catch(error => addBubble(error.message));
+      });
+      choices.append(form);
+    }
+  }
+  choices.hidden = !choices.childElementCount;
+}
+
 async function sendChat(message, shown = message.text) {
   if (shown) addBubble(shown, true);
   const response = await changeDemo(state => handleLineMessage(state, message, {
     user: guest, createId: () => 'R-' + crypto.randomUUID().slice(0, 8).toUpperCase(),
   }));
   addBubble(response.text);
+  drawChatChoices(response);
   byId('quick-location').hidden = !(readDemo().locationRequests[guest]?.until > Date.now());
   showAvailability();
   await refreshAdmin();
@@ -425,7 +461,7 @@ if (demo) {
   byId('quick-help').addEventListener('click', () => void sendText('/help'));
   byId('quick-find').addEventListener('click', () => void sendText('查詢 ' + (guestDate.value || sampleDate)));
   byId('quick-mine').addEventListener('click', () => void sendText('我的訂位'));
-  byId('quick-book').addEventListener('click', () => guestDate.focus());
+  byId('quick-book').addEventListener('click', () => void sendText('訂位'));
   byId('quick-location').hidden = !(readDemo().locationRequests[guest]?.until > Date.now());
   byId('quick-location').addEventListener('click', () => void sendChat(
     { type: 'location', latitude: 25.149, longitude: 121.774 }, '已傳送示例定位'
