@@ -164,13 +164,54 @@ export function getService(records, date, time, now = new Date()) {
   };
 }
 
-export function estimateDailyMealCost(lunchGuests, dinnerGuests, rate) {
-  const guests = lunchGuests + dinnerGuests;
-  const cents = Math.round(rate * 100);
-  const totalCents = guests * cents;
-  const amount = Number.isFinite(rate) && rate >= 0 && Number.isSafeInteger(cents) &&
-    Number.isSafeInteger(totalCents) ? totalCents / 100 : null;
-  return { guests, amount };
+export const DEFAULT_OPERATIONS = {
+  price: 1000,
+  food: 300,
+  staffCount: 1,
+  costs: [
+    { name: '人事', amount: 36000, basis: 'month' },
+    { name: '租金', amount: 6000, basis: 'month' },
+    { name: '水電', amount: 6000, basis: 'month' },
+    { name: '其他', amount: 0, basis: 'day' },
+  ],
+};
+
+export function estimateOperations(date, guests, settings) {
+  const month = new Date(date + 'T00:00:00Z');
+  month.setUTCMonth(month.getUTCMonth() + 1, 0);
+  const days = month.getUTCDate();
+  const { price, food, staffCount, costs } = settings;
+  const cents = value => Math.round(value * 100);
+  const valid = value => Number.isFinite(value) && value >= 0 && Number.isSafeInteger(cents(value));
+  if (!Number.isFinite(days) || !Number.isSafeInteger(guests) || guests < 0 ||
+      !Number.isSafeInteger(staffCount) || staffCount < 0 ||
+      ![price, food, ...costs.map(item => item.amount)].every(valid)) return null;
+
+  const items = [{ name: '食材與餐點', total: cents(food) * guests }];
+  let fixed = 0;
+  let perGuest = cents(food);
+  for (const [index, item] of costs.entries()) {
+    const input = cents(item.amount) * (index === 0 ? staffCount : 1);
+    if (item.basis === 'guest') {
+      perGuest += input;
+      items.push({ name: item.name, total: input * guests });
+    } else {
+      const daily = item.basis === 'month' ? Math.round(input / days) : input;
+      fixed += daily;
+      items.push({ name: item.name, total: daily });
+    }
+  }
+  const revenue = guests * cents(price);
+  const cost = fixed + guests * perGuest;
+  if (![revenue, cost, perGuest].every(Number.isSafeInteger)) return null;
+  const difference = revenue - cost;
+  const contribution = cents(price) - perGuest;
+  return {
+    days, revenue: revenue / 100, cost: cost / 100, profit: difference / 100,
+    margin: revenue ? difference / revenue : null,
+    breakEven: fixed === 0 ? 0 : contribution > 0 ? Math.ceil(fixed / contribution) : null,
+    items: items.map(item => ({ ...item, total: item.total / 100 })),
+  };
 }
 
 export function getSeatAssignments(bookings, date, time) {

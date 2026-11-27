@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#12362a">
   <meta name="description" content="用 LINE 查詢與訂位，從業主看板掌握備餐人數和桌況。">
   <title>餐廳預約系統</title>
-  <link rel="stylesheet" href="./style.css?v=16">
-  <script type="module" src="./app.js?v=16"></script>
+  <link rel="stylesheet" href="./style.css?v=17">
+  <script type="module" src="./app.js?v=17"></script>
 </head>
 <body>
   <header class="topbar">
@@ -46,14 +46,32 @@
         </div>
         <div class="metrics" id="metrics" aria-label="餐期統計"></div>
         <section class="panel meal-budget" aria-labelledby="meal-budget-title">
-          <div>
-            <h2 id="meal-budget-title">當日預計餐費</h2>
-            <p class="meal-budget-note" id="meal-budget-count"></p>
+          <div class="panel-top">
+            <div>
+              <h2 id="meal-budget-title">當日營業預估</h2>
+              <p id="meal-budget-count"></p>
+            </div>
           </div>
-          <label>每人餐費（新台幣）
-            <input id="meal-rate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="填入金額">
-          </label>
-          <p id="meal-budget-total" class="meal-budget-total" role="status"></p>
+          <dl class="operations-totals" aria-label="全天預估合計" aria-live="polite">
+            <div><dt>預計營業額</dt><dd id="daily-revenue">—</dd></div>
+            <div><dt>總成本</dt><dd id="daily-cost">—</dd></div>
+            <div><dt>預計盈餘</dt><dd id="daily-profit">—</dd></div>
+            <div><dt>盈餘率</dt><dd id="daily-margin">—</dd></div>
+            <div><dt>損益兩平人數</dt><dd id="daily-break-even">—</dd></div>
+          </dl>
+          <p id="operations-feedback" class="feedback" role="status" hidden></p>
+          <h3>當日成本明細</h3>
+          <dl class="cost-breakdown" id="cost-breakdown"></dl>
+          <details class="cost-settings">
+            <summary>調整客單價與成本</summary>
+            <div class="operations-inputs">
+              <label>每位客人消費（元） <input id="guest-price" type="number" min="0" step="0.01" inputmode="decimal"></label>
+              <label>每位食材與餐點成本（元） <input id="food-cost" type="number" min="0" step="0.01" inputmode="decimal"></label>
+              <label>員工人數 <input id="staff-count" type="number" min="0" step="1" inputmode="numeric"></label>
+            </div>
+            <div id="cost-fields"></div>
+            <button id="add-cost" class="secondary" type="button">新增成本</button>
+          </details>
         </section>
         <div class="detail-grid">
           <section class="panel floor" aria-labelledby="desk-heading">
