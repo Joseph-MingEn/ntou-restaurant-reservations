@@ -117,14 +117,14 @@ test('口語詢問明天晚餐五點半有沒有五人座時，回覆該時段�
   const { state, send } = setup();
   const answer = send('請問明天晚上五點半，五位，有位嗎？');
   assert.match(answer.text, /2027-01-12/);
-  assert.match(answer.text, /17:30–19:30.*5 人可訂/);
+  assert.match(answer.text, /17:30–19:30\n5 人可訂/);
   assert.equal(state.bookings.length, 0);
 });
 
 test('口語訂位會準備所選時間，再由客人確認資料', () => {
   const { state, send } = setup();
   const first = send('我想訂明晚五點半的位子，六個人');
-  assert.match(first.text, /2027-01-12 17:30–19:30/);
+  assert.match(first.text, /日期 2027-01-12\n用餐時段 17:30–19:30/);
   assert.match(first.text, /確認 6 王小明/);
   assert.equal(state.bookings.length, 0);
   assert.match(send('確認 六位 王小明 guest@example.test').text, /訂位成功/);
@@ -147,8 +147,8 @@ test('未開放的非整點時段回覆可選時段及各自的訂位截止', ()
   const { send } = setup();
   const answer = send('明天晚上 17:40 能訂嗎？');
   assert.match(answer.text, /每 30 分鐘/);
-  assert.match(answer.text, /17:30–19:30.*17:00 前/);
-  assert.match(answer.text, /18:00–20:00.*17:30 前/);
+  assert.match(answer.text, /17:30–19:30[\s\S]*?17:00 前/);
+  assert.match(answer.text, /18:00–20:00[\s\S]*?17:30 前/);
 });
 
 test('用口語詢問截止，回覆確切的截止時間而不建立訂位草稿', () => {
@@ -159,6 +159,25 @@ test('用口語詢問截止，回覆確切的截止時間而不建立訂位草�
 
 test('口語「五點五位有空嗎」將第二個五辨識為人數，且只查詢空位', () => {
   const { state, send } = setup();
-  assert.match(send('明天晚上五點五位有空嗎？').text, /17:00–19:00.*5 人可訂/);
+  assert.match(send('明天晚上五點五位有空嗎？').text, /17:00–19:00\n5 人可訂/);
   assert.equal(state.bookingDrafts, undefined);
+});
+
+test('查位回覆逐項換行，多個時段之間留空行', () => {
+  const { send } = setup();
+  const answer = send('請問明天晚上五點半，五位，有位嗎？');
+  assert.equal(answer.text, [
+    '2027-01-12', '', '17:30–19:30', '5 人可訂', '最大單組 12 人',
+    '兩人桌剩 6 張', '四人桌剩 6 張', '請在 17:00 前訂位',
+  ].join('\n'));
+  assert.match(send('查詢 2027-01-12').text, /11:00 前訂位\n\n12:00–14:00/);
+});
+
+test('建立、查詢本人訂位及改期的結果，各欄位分行', () => {
+  const { send } = setup();
+  const created = send('訂位 2027-01-12 12:30 2 林小安 guest@example.test').text;
+  assert.match(created, /^訂位成功！\n\n訂位編號 R-001\n用餐日期 2027-01-12\n用餐時段 12:30–14:30\n人數 2 人\n桌號 A01$/);
+  send('訂位 2027-01-13 12:30 2 林小安 guest@example.test');
+  assert.match(send('我的訂位').text, /桌號 A01\n\n訂位編號 R-001\n用餐日期 2027-01-13/);
+  assert.match(send('改期 R-001 2027-01-12 17:30 2').text, /^改期成功！\n\n訂位編號 R-001\n用餐日期 2027-01-12\n用餐時段 17:30–19:30/);
 });
